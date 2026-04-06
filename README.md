@@ -57,7 +57,6 @@ python3 -m http.server 3000
 - [ ] PWA support (installable on mobile!)
 - [ ] Accessibility improvements (reduced motion mode)
 - [ ] Theme switcher (night garden, ocean, and more)
-- [ ] Integration with Energy Stars tracker
 
 ---
 
