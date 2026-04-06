@@ -20,20 +20,6 @@ Designed for people with ADHD, autism, anxiety, or anyone who needs a softer, ki
 
 ---
 
-## Project Structure
-
-```
-bloom/
-├── index.html        # Main app shell
-├── css/
-│   └── style.css     # All styles & animations
-├── js/
-│   └── app.js        # Timer logic, sparkles, celebrations
-└── README.md
-```
-
----
-
 ## How to Run
 
 No build tools, no dependencies. Just open it!
