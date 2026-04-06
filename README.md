@@ -4,7 +4,7 @@
 
 Bloom is a minimalist, whimsical focus timer built with spoon theory in mind. It asks you to do just **one thing** — and surrounds you with fairies and sparkles while you do it.
 
-Designed for people with ADHD, autism, anxiety, or anyone who needs a softer, kinder way to focus.
+Designed for people with ADHD, autism, anxiety, or anyone who needs a softer, kinder way to focus. You may check out the current interface on the **screenshot** among files!
 
 ---
 
