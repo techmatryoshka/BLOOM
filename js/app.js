@@ -3,6 +3,79 @@
    js/app.js
    ============================================================ */
 
+// ── Theme (dark / light) ────────────────────────────────────────
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+let isDark = localStorage.getItem('bloom-theme') === 'dark' ||
+             (localStorage.getItem('bloom-theme') === null && prefersDark);
+
+function applyTheme() {
+  document.body.classList.toggle('dark', isDark);
+  document.querySelector('.theme-icon').textContent = isDark ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+  isDark = !isDark;
+  localStorage.setItem('bloom-theme', isDark ? 'dark' : 'light');
+  applyTheme();
+}
+
+applyTheme();
+
+
+// ── Lo-fi radio player ──────────────────────────────────────────
+let lofiPlaying = false;
+const LOFI_PLAYING_LABELS = [
+  'lo-fi beats for soft focus 🌿',
+  'gentle music for gentle minds ✨',
+  'the fairies approve of this playlist 🧚',
+  'let the music carry you 🌸',
+];
+
+function toggleLofi() {
+  const iframe   = document.getElementById('yt-iframe');
+  const btn      = document.getElementById('play-btn');
+  const icon     = document.getElementById('lofi-anim');
+  const sub      = document.getElementById('lofi-sub');
+
+  lofiPlaying = !lofiPlaying;
+
+  if (lofiPlaying) {
+    // Reload iframe with autoplay=1 to start playback
+    iframe.src = 'https://www.youtube.com/embed/sF80I-TQiW0?autoplay=1&controls=0&loop=1&playlist=sF80I-TQiW0&enablejsapi=1';
+    btn.textContent = '⏸';
+    btn.classList.add('playing');
+    icon.classList.add('playing');
+    sub.textContent = LOFI_PLAYING_LABELS[Math.floor(Math.random() * LOFI_PLAYING_LABELS.length)];
+  } else {
+    // Pause by reloading without autoplay
+    iframe.src = 'https://www.youtube.com/embed/sF80I-TQiW0?autoplay=0&controls=0&loop=1&playlist=sF80I-TQiW0&enablejsapi=1';
+    btn.textContent = '▶';
+    btn.classList.remove('playing');
+    icon.classList.remove('playing');
+    sub.textContent = 'paused — take a breath 🌙';
+  }
+}
+
+function setVolume(value) {
+  // Volume is controlled via iframe postMessage to YouTube player API
+  const iframe = document.getElementById('yt-iframe');
+  const vol = parseInt(value, 10);
+  // Update the volume icon
+  const icon = document.querySelector('.lofi-vol-icon');
+  if (vol === 0)      icon.textContent = '🔇';
+  else if (vol < 40)  icon.textContent = '🔈';
+  else if (vol < 70)  icon.textContent = '🔉';
+  else                icon.textContent = '🔊';
+
+  // Post volume message to YouTube iframe
+  try {
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func: 'setVolume', args: [vol] }),
+      '*'
+    );
+  } catch(e) { /* iframe not ready yet */ }
+}
+
 // ── Floaty elements ────────────────────────────────────────────
 const SPARKLE_EMOJIS = ['✨','🌸','🌿','🦋','🌼','⭐','💫','🍄','🌺','🌾','🍀','🌙','🫧','🐝','🐞','💐','🌻'];
 const FAIRY_EMOJIS   = ['🧚','🧚‍♀️','🦋','🐞','🐝','🌟'];
