@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloom — a gentle focus spell</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Lora:ital,wght@0,400;1,400&family=Satisfy&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Custom cursor -->
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <!-- XP BAR -->
+    <div class="xp-bar-wrap">
+      <div class="xp-inner">
+        <img src="assets/stickers/seedling.png" class="xp-level-img" id="xp-level-img" alt="level">
+        <div class="xp-track"><div class="xp-fill" id="xp-fill"></div></div>
+        <div class="xp-meta">
+          <span class="xp-level-name" id="xp-level-name">Seedling</span>
+          <span class="xp-pts" id="xp-pts">0 / 50 XP</span>
+        </div>
+      </div>
+    </div>
+    <!-- Top right buttons -->
+    <div class="top-right">
+      <button class="icon-btn" id="about-btn" aria-label="About Bloom">
+        <img src="assets/stickers/flower10.webp" class="icon-btn-img" alt="about">
+      </button>
+      <button class="icon-btn" id="designer-btn" aria-label="Meet the designer">
+        <img src="assets/stickers/diary.webp" class="icon-btn-img" alt="designer">
+      </button>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark/light mode">
+        <img id="theme-icon-img" src="assets/stickers/moon.webp" alt="toggle theme" class="theme-icon-img">
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-layer" id="bg-layer"></div>
+  <div id="floaties"></div>
+  <canvas id="petal-canvas"></canvas>
+
+  <!-- ABOUT BLOOM MODAL -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal-card about-card">
+      <button class="modal-close" onclick="closeModal('about-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/flower10.webp" class="modal-hero-img" alt="bloom flower">
+      <h2 class="modal-title">About Bloom</h2>
+
+      <div class="free-banner">
+        <img src="assets/bg/star2.webp" class="free-star" alt="">
+        <p>Bloom is free and always will be.<br>No ads, no paywalls.<br>Enjoy your growth, carefree.</p>
+        <img src="assets/bg/star2.webp" class="free-star" alt="">
+      </div>
+
+      <p class="modal-body">
+        Bloom was designed for neurodivergent minds by a neurodivergent mind — because you need
+        a little gentleness and grace to get going.
+      </p>
+      <p class="modal-body">
+        Bloom is not here to turn you into a productive machine. She asks you to tend to
+        one thing, like a gardener taking care of one flower at a time. She doesn't use lists
+        or overwhelming timers that fill your screen — she encourages your growth with care.
+      </p>
+
+      <div class="about-feature-row">
+        <img src="assets/bg/star2.webp" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">XP &amp; Growth System</p>
+          <p class="feature-body">Every session you complete earns you XP. Watch yourself grow from
+          a Seedling all the way to Fairy Queen — because every task you finish, no matter how small,
+          is worth celebrating.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/notebook.webp" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Daily Bloom Log</p>
+          <p class="feature-body">A gentle daily record of everything you tended to, with space
+          to write your own thoughts. Your data stays on your device — private, always.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/bg/flower9.webp" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Lo-fi Focus Radio</p>
+          <p class="feature-body">Ambient music streams softly in the background while you work,
+          because the right sounds can make even the hardest tasks feel softer.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEET THE DESIGNER MODAL -->
+  <div class="modal-overlay" id="designer-modal">
+    <div class="modal-card designer-card">
+      <button class="modal-close" onclick="closeModal('designer-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/diary.webp" class="modal-hero-img designer-hero" alt="diary">
+      <h2 class="modal-title">Meet the Designer</h2>
+      <img src="assets/bg/flower7.webp" class="designer-divider-flower" alt="">
+
+      <p class="designer-name">Amina Radončić</p>
+      <p class="designer-title">Neuroadaptive System Engineer</p>
+
+      <p class="modal-body">
+        Hi! I'm Amina — a neuroadaptive system engineer who designs whimsical systems
+        for neurodivergent minds. I hold an MSc in Bioengineering and am currently a
+        PhD student in Electrical Engineering and IT.
+      </p>
+      <p class="modal-body">
+        As a person with AuDHD who constantly struggled with focus and time blindness,
+        I decided to create Bloom for minds alike — hoping that it would inspire you
+        to fulfill the tasks that feel impossible to start.
+      </p>
+
+      <div class="designer-quote">
+        <img src="assets/bg/petal2.webp" class="quote-petal" alt="">
+        <p>"One flower at a time."</p>
+      </div>
+
+      <a href="https://www.linkedin.com/in/amina-radon%C4%8Di%C4%87-090b99288/?skipRedirect=true"
+         target="_blank" rel="noopener" class="linkedin-btn">
+        <img src="assets/bg/star2.webp" class="linkedin-icon" alt="">
+        Follow on LinkedIn
+      </a>
+      <p class="modal-note">Keep up with all my cool projects</p>
+    </div>
+  </div>
+
+  <!-- LEVEL UP OVERLAY -->
+  <div id="levelup-overlay">
+    <div class="levelup-card">
+      <img class="levelup-img" id="levelup-img" src="" alt="">
+      <h2 class="levelup-title">Level Up!</h2>
+      <p class="levelup-name" id="levelup-name"></p>
+      <p class="levelup-reward" id="levelup-reward"></p>
+      <div class="levelup-flowers" id="levelup-flowers"></div>
+      <button class="btn" onclick="closeLevelUp()">Wonderful!</button>
+    </div>
+  </div>
+
+  <!-- CELEBRATION -->
+  <div id="celebration">
+    <img src="assets/bg/flower9.webp" class="celeb-flower" alt="">
+    <h2 class="celebrate-title">You did it, darling!</h2>
+    <p class="celebrate-msg" id="celebrate-msg"></p>
+    <div class="xp-gained-badge" id="xp-gained-badge"></div>
+    <div class="flowers" id="flowers-row"></div>
+    <button class="btn" onclick="resetAll()">Begin anew</button>
+  </div>
+
+  <!-- BREATHING OVERLAY -->
+  <div id="breathing-overlay">
+    <div class="breathing-card">
+      <p class="breathing-title">before we begin...</p>
+      <p class="breathing-subtitle">take a gentle breath with me</p>
+      <div class="breathing-circle-wrap">
+        <div class="breathing-circle" id="breathing-circle">
+          <img src="assets/bg/flower9.webp" class="breathing-flower" alt="">
+        </div>
+        <div class="breathing-ring" id="breathing-ring"></div>
+      </div>
+      <p class="breathing-instruction" id="breathing-instruction">inhale...</p>
+      <p class="breathing-count" id="breathing-count">4</p>
+      <button class="btn-skip" onclick="skipBreathing()">skip</button>
+    </div>
+  </div>
+
+  <!-- MAIN CARD -->
+  <div class="card" id="main-card">
+    <img src="assets/bg/flower7.webp"   class="corner-img corner-tl" alt="">
+    <img src="assets/bg/butterfly.webp" class="corner-img corner-tr" alt="">
+    <img src="assets/bg/butterfly.webp" class="corner-img corner-bl" alt="">
+    <img src="assets/bg/flower7.webp"   class="corner-img corner-br" alt="">
+
+    <div class="crown-wrap">
+      <img src="assets/stickers/crown.webp" class="crown-img" alt="bloom">
+    </div>
+    <h1>Bloom</h1>
+    <p class="subtitle">a gentle focus spell</p>
+
+    <!-- INPUT SCREEN -->
+    <div id="input-screen">
+      <p class="prompt">What is the one little thing<br>you're tending to right now, dear?</p>
+      <textarea id="task-input" placeholder="e.g. write my lit review intro..." maxlength="140"></textarea>
+      <div class="divider">choose your spell length</div>
+      <div class="mode-tabs">
+        <button class="tab active" onclick="selectDuration(this, 25)">25 min</button>
+        <button class="tab" onclick="selectDuration(this, 15)">15 min</button>
+        <button class="tab" onclick="selectDuration(this, 5)">5 min</button>
+      </div>
+      <button class="btn" onclick="startBreathing()">cast the spell</button>
+
+      <div class="affirmation-box">
+        <p class="affirmation-text" id="affirmation-text"></p>
+        <button class="affirmation-refresh" onclick="newAffirmation()" title="New affirmation">
+          <img src="assets/bg/star3.png" class="refresh-star" alt="new">
+        </button>
+      </div>
+
+      <div class="log-section">
+        <button class="log-header" onclick="toggleLog()" id="log-header" aria-expanded="false">
+          <span class="log-header-left">
+            <img src="assets/stickers/notebook.webp" class="notebook-icon" alt="">
+            <span>today's bloom log</span>
+          </span>
+          <img src="assets/bg/leaf1.webp" class="log-arrow-img" id="log-arrow-img" alt="">
+        </button>
+        <div class="log-body" id="log-body">
+          <ul class="log-list" id="log-list">
+            <li class="log-empty">Nothing bloomed yet today</li>
+          </ul>
+          <div class="journal-wrap">
+            <p class="journal-label">What makes you bloom today?</p>
+            <!-- Submitted journal entries list -->
+            <div class="journal-entries" id="journal-entries"></div>
+            <!-- Input row -->
+            <div class="journal-input-row">
+              <input
+                class="journal-input"
+                id="journal-input"
+                type="text"
+                placeholder="Write something and press Enter..."
+                maxlength="200"
+                autocomplete="off"
+                spellcheck="true"
+              >
+              <button class="journal-submit-btn" id="journal-submit-btn" onclick="submitJournalEntry()" title="Save entry">
+                <img src="assets/bg/flower10.webp" class="journal-submit-icon" alt="save">
+              </button>
+            </div>
+            <p class="journal-hint">Press Enter or the flower to save — earns you XP</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOCUS SCREEN -->
+    <div id="focus-screen">
+      <p class="focus-hint">right now, you are doing...</p>
+      <div class="task-display"><span id="task-label"></span></div>
+      <div class="timer-wrap" id="timer-wrap">
+        <svg class="timer-svg" viewBox="0 0 160 160" aria-hidden="true">
+          <defs>
+            <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#e8a0b4"/>
+              <stop offset="100%" stop-color="#9daf89"/>
+            </linearGradient>
+          </defs>
+          <circle class="timer-track" cx="80" cy="80" r="70"/>
+          <circle class="timer-progress" id="timer-ring" cx="80" cy="80" r="70"/>
+        </svg>
+        <div class="timer-text">
+          <span class="timer-digits" id="timer-digits">25:00</span>
+          <span class="timer-label-text">minutes of magic</span>
+        </div>
+        <div class="timer-orbit">
+          <img src="assets/bg/star3.png" class="orbit-star" alt="">
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="pause-btn" onclick="togglePause()">pause</button>
+        <button class="btn btn-outline" onclick="resetAll()">end spell</button>
+      </div>
+      <p class="session-info" id="session-info">session 1</p>
+    </div>
+  </div>
+
+  <!-- LO-FI PLAYER -->
+  <div class="lofi-player">
+    <div class="lofi-inner">
+      <div class="lofi-info">
+        <img src="assets/stickers/radio.png" class="radio-icon" id="lofi-radio-img" alt="radio">
+        <div class="lofi-text">
+          <span class="lofi-title">lo-fi focus radio</span>
+          <span class="lofi-sub" id="lofi-sub">press play to begin — requires internet</span>
+        </div>
+      </div>
+      <div class="lofi-controls">
+        <button class="lofi-btn" id="play-btn" onclick="toggleLofi()" aria-label="Play or pause">
+          <span id="play-icon">&#9654;</span>
+        </button>
+        <input class="lofi-volume" type="range" min="0" max="1" step="0.01" value="0.6"
+               oninput="setVolume(this.value)" aria-label="Volume">
+        <span class="lofi-vol-icon" id="vol-icon">
+          <img src="assets/bg/leaf2.webp" class="vol-leaf" alt="volume">
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
