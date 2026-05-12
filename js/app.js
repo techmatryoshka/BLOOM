@@ -1350,7 +1350,7 @@ function sendFeedback() {
   document.getElementById('feedback-sent').style.display     = 'none';
   document.getElementById('feedback-error').style.display    = 'none';
 
-  if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
+  if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'wvcPyqj6vPOvRoJvc') {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
