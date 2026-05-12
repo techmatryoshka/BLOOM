@@ -7,9 +7,10 @@
 
 **Bloom is free and always will be. No ads, no paywalls. Enjoy your growth, carefree.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-bloom-e8a0b4?style=for-the-badge&logo=github)](https://yourusername.github.io/bloom)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-techmatryoshka.github.io/BLOOM-e8a0b4?style=for-the-badge&logo=github)](https://techmatryoshka.github.io/BLOOM/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-9daf89?style=for-the-badge)](LICENSE)
 [![Made with love](https://img.shields.io/badge/Made%20with-love%20%26%20petals-e8a0b4?style=for-the-badge)](https://www.linkedin.com/in/amina-radon%C4%8Di%C4%87-090b99288/)
+[![PWA Ready](https://img.shields.io/badge/PWA-installable-9daf89?style=for-the-badge)](https://techmatryoshka.github.io/BLOOM/)
 
 </div>
 
@@ -31,38 +32,47 @@ Built with love for anyone with ADHD, autism, AuDHD, anxiety, or any brain that 
 |---|---|
 | **One Thing Focus Timer** | Type one task, choose 5 / 15 / 25 minutes, and let Bloom hold space for you |
 | **Breathing Exercise** | A gentle 4-4-4 breathing cycle before each session to ease task initiation |
-| **XP & Growth System** | Earn XP for every completed session and journal entry — grow from Seedling to Fairy Queen |
+| **XP & Growth System** | Earn XP for every completed session, rest break, and journal entry — grow from Seedling to Fairy Queen |
 | **Daily Bloom Log** | A record of everything you tended to today, with timestamps and XP earned |
 | **Journal — "What makes you bloom today?"** | Press Enter to save a reflection — earns you XP because self-awareness is growth |
+| **Rest Mode** | Timed rest sessions (5 / 10 / 20 min) that earn you XP — rest is not giving up |
+| **Nature Soundscapes** | Rain, forest, birds, stream, wind and fireplace — generated with Web Audio API, no files needed |
+| **Lo-fi Focus Radio** | Four ambient music styles via SomaFM streams, with Chillhop link for real lo-fi |
 | **Affirmations** | Gentle, neurodivergent-affirming messages that unlock new tiers as you level up |
-| **Lo-fi Focus Radio** | Ambient SomaFM streams play softly in the background while you work |
+| **Week in Bloom** | Weekly stats with flower bar chart, ladybug streak badges, and journal highlights |
+| **Lifetime Stats** | All-time sessions, minutes focused, and journal entries tracked |
+| **Seasonal Themes** | Cherry blossoms in spring, daisies in summer, maple leaves in autumn, snowflakes in winter |
 | **Light & Dark Mode** | Cottagecore light mode and enchanted night garden dark mode |
-| **Petal Rain Celebration** | Real flower petal images fall across the screen when you complete a session |
-| **Custom Cursor** | A soft flower cursor follows your mouse |
-| **Parallax Background** | Flowers, leaves, petals and stars fall gently from the top of the screen |
+| **Petal Rain Celebration** | Real flower petal images rain down on the canvas when you complete a session |
+| **Draggable Panels** | Nature sounds panel, lo-fi player and XP bar are all freely draggable — positions saved |
+| **Custom Flower Cursor** | A soft flower cursor follows your mouse |
+| **Feedback Form** | Built-in feedback form powered by EmailJS — messages land directly in the designer's inbox |
+| **Export & Import** | Download your bloom data as a JSON backup and restore it on any device |
+| **PWA Installable** | Add to Home Screen on Android or iOS — works offline after first load |
 | **Privacy First** | All data stored locally on your device — nothing sent anywhere, ever |
 
 ---
 
 ## XP Level System
 
-Your growth is tracked across 7 levels, each represented by a real flower image:
-
 | Level | XP Required | Icon |
 |---|---|---|
-| 🌱 Seedling | 0 XP | Starting point |
-| 🌸 Sprout | 50 XP | Unlocks new affirmations |
-| 🌺 Blooming | 150 XP | Unlocks new affirmations |
-| 🌻 Flourishing | 300 XP | Unlocks new affirmations |
-| 🍀 Enchanted | 500 XP | Unlocks new affirmations |
-| 💜 Iris Queen | 750 XP | Unlocks new affirmations |
-| 👑 Fairy Queen | 1000 XP | Full bloom — you made it |
+| Seedling | 0 XP | Starting point |
+| Sprout | 50 XP | Unlocks new affirmations |
+| Blooming | 150 XP | Unlocks new affirmations |
+| Flourishing | 300 XP | Unlocks new affirmations |
+| Enchanted | 500 XP | Unlocks new affirmations |
+| Iris Queen | 750 XP | Unlocks new affirmations |
+| Fairy Queen | 1000 XP | Full bloom — you made it |
 
 **XP sources:**
 - 5-min session → +10 XP
 - 15-min session → +25 XP
 - 25-min session → +40 XP
 - Journal entry → +5 XP
+- 5-min rest → +5 XP
+- 10-min rest → +8 XP
+- 20-min rest → +12 XP
 
 ---
 
@@ -76,12 +86,14 @@ No frameworks. No dependencies. No build tools.
 | Layer | Details |
 |---|---|
 | **Structure** | Semantic HTML5 |
-| **Styling** | CSS custom properties (full dark/light theming), CSS animations, backdrop-filter |
-| **Logic** | Vanilla JS — timestamp-based timer (works in background tabs), Web Audio API for sound effects, Canvas API for petal rain |
-| **Storage** | localStorage — private, local, resets daily |
+| **Styling** | CSS custom properties (full dark/light/seasonal theming), CSS animations, backdrop-filter |
+| **Logic** | Vanilla JS — timestamp-based timer (works in background tabs), Web Audio API for sound effects and nature soundscapes, Canvas API for petal rain |
+| **Storage** | localStorage — private, local, daily resets, exportable |
+| **Feedback** | EmailJS for in-app feedback form (no backend needed) |
 | **Audio** | SomaFM internet radio streams via `<audio>` element |
+| **PWA** | Web App Manifest + Service Worker for offline use and home screen installation |
 | **Fonts** | Google Fonts — Satisfy, Playfair Display, Lora |
-| **Assets** | Custom flower, petal, leaf, star PNGs/WebPs |
+| **Assets** | Custom flower, petal, leaf, star, butterfly PNGs/WebPs |
 
 ---
 
@@ -90,13 +102,16 @@ No frameworks. No dependencies. No build tools.
 ```
 bloom/
 ├── index.html              # App shell
+├── manifest.json           # PWA manifest
+├── sw.js                   # Service worker (offline caching)
 ├── css/
 │   └── style.css           # All styles, themes, animations
 ├── js/
-│   └── app.js              # All logic — timer, XP, audio, floaties, canvas
+│   └── app.js              # All logic — timer, XP, audio, soundscapes, canvas, drag
 ├── assets/
-│   ├── stickers/           # UI icons — crown, moon, sun, radio, notebook, level badges
-│   └── bg/                 # Background floaties — flowers, petals, leaves, stars
+│   ├── stickers/           # UI icons — crown, level badges, feature icons
+│   ├── bg/                 # Background floaties — flowers, petals, leaves, stars
+│   └── icons/              # PWA icons — all required sizes
 └── README.md
 ```
 
@@ -114,23 +129,37 @@ python3 -m http.server 3000
 npx serve .
 
 # Option 3 — VS Code
-# Install the "Live Server" extension, right-click index.html → Open with Live Server
+# Install "Live Server" extension → right-click index.html → Open with Live Server
 ```
 
-> **Note:** The lo-fi radio requires an internet connection and a server context (not `file://`).
-> Any of the three options above will enable it.
+> **Note:** The lo-fi radio requires internet. Nature soundscapes and all other features work fully offline.
 
 ---
 
-## Deploying to GitHub Pages
+## Setting up the Feedback Form
 
-1. Push this repository to GitHub
-2. Go to **Settings → Pages**
-3. Set source to `main` branch, `/ (root)` folder
-4. Click **Save**
-5. Your app is live at `https://yourusername.github.io/bloom` in ~60 seconds
+The in-app feedback form uses [EmailJS](https://emailjs.com) (free tier: 200 emails/month).
 
-The radio, all assets, and localStorage all work perfectly on GitHub Pages.
+1. Sign up at **emailjs.com**
+2. Add Gmail as an email service
+3. Create a template with `{{from_name}}` and `{{message}}` variables
+4. In `js/app.js` at the bottom, replace:
+
+```js
+const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';
+const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
+const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';
+```
+
+5. In EmailJS → Account → Security, add your domain to restrict key usage
+
+---
+
+## Installing as an Android / iOS App (PWA)
+
+1. Open `https://techmatryoshka.github.io/BLOOM/` in Chrome (Android) or Safari (iOS)
+2. Tap the browser menu → **"Add to Home Screen"**
+3. Bloom appears on your home screen with her own icon, opens fullscreen
 
 ---
 
@@ -146,6 +175,7 @@ MSc in Bioengineering · PhD student in Electrical Engineering & IT
 As a person with AuDHD who constantly struggled with focus and time blindness, I built Bloom for minds alike — hoping it would inspire you to start the tasks that feel impossible to begin.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Amina%20Radončić-0077B5?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/amina-radon%C4%8Di%C4%87-090b99288/?skipRedirect=true)
+[![Email](https://img.shields.io/badge/Email-matlabmatryoshka%40gmail.com-e8a0b4?style=for-the-badge)](mailto:matlabmatryoshka@gmail.com)
 
 </div>
 
