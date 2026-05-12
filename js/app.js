@@ -125,201 +125,61 @@ function rotateSuggestion() {
 }
 setInterval(rotateSuggestion, 3000);
 
-// ── Nature soundscape engine (Web Audio API) ──────────────────────
-let scCtx = null, scNodes = [], scPlaying = null, scGainNode = null;
+// ── Nature soundscape engine — real looping MP3s ─────────────────
+const SOUNDSCAPE_FILES = {
+  rain:      'assets/sounds/rain.mp3',
+  forest:    'assets/sounds/forest.mp3',
+  birds:     'assets/sounds/birds.mp3',
+  stream:    'assets/sounds/stream.mp3',
+  wind:      'assets/sounds/wind.mp3',
+  fireplace: 'assets/sounds/fireplace.mp3',
+};
+const SOUNDSCAPE_NAMES = {
+  rain:'Gentle Rain', forest:'Forest', birds:'Birds',
+  stream:'Stream', wind:'Wind', fireplace:'Fireplace',
+};
 
-function getSoundCtx() {
-  if (!scCtx) scCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return scCtx;
-}
+let scAudio = null, scPlaying = null;
 
 function stopSoundscape() {
-  scNodes.forEach(n => { try { n.stop(); } catch(e) {} });
-  scNodes = [];
+  if (scAudio) { scAudio.pause(); scAudio.currentTime = 0; scAudio = null; }
   scPlaying = null;
-  document.querySelectorAll('.soundscape-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sc-panel-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('sc-now-playing').style.display = 'none';
 }
 
 function setSoundscapeVolume(v) {
-  if (scGainNode) scGainNode.gain.setTargetAtTime(parseFloat(v), getSoundCtx().currentTime, 0.1);
+  if (scAudio) scAudio.volume = parseFloat(v);
 }
 
 function playSoundscape(type) {
   stopSoundscape();
   scPlaying = type;
-  const ctx = getSoundCtx();
-  scGainNode = ctx.createGain();
-  scGainNode.gain.value = parseFloat(document.querySelector('#soundscape-modal .lofi-volume').value);
-  scGainNode.connect(ctx.destination);
 
-  const names = {
-    rain:      'Gentle Rain',
-    forest:    'Forest',
-    birds:     'Birds',
-    stream:    'Stream',
-    wind:      'Wind',
-    fireplace: 'Fireplace',
-  };
+  scAudio        = new Audio(SOUNDSCAPE_FILES[type]);
+  scAudio.loop   = true;
+  scAudio.volume = parseFloat(document.querySelector('.sc-vol-slider').value);
 
-  // Generate sounds procedurally
-  if (type === 'rain') {
-    // Rain = filtered white noise with gentle amplitude modulation
-    const bufferSize = ctx.sampleRate * 4;
-    const buffer     = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data       = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-    const source = ctx.createBufferSource();
-    source.buffer = buffer; source.loop = true;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 0.8;
-    const gain2 = ctx.createGain(); gain2.gain.value = 0.6;
-    source.connect(filter); filter.connect(gain2); gain2.connect(scGainNode);
-    source.start(); scNodes.push(source);
-    // Add occasional droplet pings
-    function droplet() {
-      if (scPlaying !== 'rain') return;
-      const osc = ctx.createOscillator(), g = ctx.createGain();
-      osc.frequency.value = 1200 + Math.random() * 800;
-      osc.connect(g); g.connect(scGainNode);
-      g.gain.setValueAtTime(0.04, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
-      setTimeout(droplet, 200 + Math.random() * 1000);
-    }
-    droplet();
+  // Keep audio playing in background tabs by preventing Chrome from
+  // suspending it — we request a Wake Lock style hint via playing
+  // immediately on user gesture and never pausing on visibility change
+  scAudio.play().catch(() => {
+    document.getElementById('sc-playing-text').textContent = 'tap again to start';
+    document.getElementById('sc-now-playing').style.display = 'flex';
+  });
 
-  } else if (type === 'forest') {
-    // Forest = low rumble + high breeze + random bird chirps
-    [120, 280, 500].forEach(freq => {
-      const buf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
-      const d   = buf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-      src.buffer = buf; src.loop = true;
-      f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.5;
-      g.gain.value = freq < 300 ? 0.3 : 0.15;
-      src.connect(f); f.connect(g); g.connect(scGainNode);
-      src.start(); scNodes.push(src);
-    });
-    // Bird chirps
-    function chirp() {
-      if (scPlaying !== 'forest') return;
-      const osc = ctx.createOscillator(), g = ctx.createGain();
-      osc.type = 'sine';
-      const baseFreq = 2000 + Math.random() * 1500;
-      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(baseFreq * 1.4, ctx.currentTime + 0.08);
-      osc.frequency.linearRampToValueAtTime(baseFreq, ctx.currentTime + 0.15);
-      g.gain.setValueAtTime(0.06, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      osc.connect(g); g.connect(scGainNode);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.25);
-      setTimeout(chirp, 1500 + Math.random() * 4000);
-    }
-    chirp();
-
-  } else if (type === 'birds') {
-    // Birds only — many overlapping chirps
-    function bird() {
-      if (scPlaying !== 'birds') return;
-      const notes = 2 + Math.floor(Math.random() * 4);
-      for (let n = 0; n < notes; n++) {
-        setTimeout(() => {
-          const osc = ctx.createOscillator(), g = ctx.createGain();
-          osc.type = 'sine';
-          const f = 1800 + Math.random() * 2000;
-          osc.frequency.setValueAtTime(f, ctx.currentTime);
-          osc.frequency.linearRampToValueAtTime(f * (1.1 + Math.random() * .4), ctx.currentTime + 0.1);
-          g.gain.setValueAtTime(0.07, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-          osc.connect(g); g.connect(scGainNode);
-          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.25);
-        }, n * 120);
-      }
-      setTimeout(bird, 800 + Math.random() * 2500);
-    }
-    bird();
-
-  } else if (type === 'stream') {
-    // Stream = multiple filtered noise sources at different rates
-    [200, 600, 1400].forEach((freq, i) => {
-      const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-      const d   = buf.getChannelData(0);
-      for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
-      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
-      const g = ctx.createGain(), lfo = ctx.createOscillator(), lfoG = ctx.createGain();
-      src.buffer = buf; src.loop = true;
-      f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2;
-      g.gain.value = [0.4, 0.3, 0.2][i];
-      lfo.frequency.value = 0.3 + i * 0.15; lfoG.gain.value = 0.1;
-      lfo.connect(lfoG); lfoG.connect(g.gain);
-      src.connect(f); f.connect(g); g.connect(scGainNode);
-      src.start(); lfo.start(); scNodes.push(src, lfo);
-    });
-
-  } else if (type === 'wind') {
-    // Wind = slowly modulating filtered noise
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
-    const d   = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
-    const g = ctx.createGain(), lfo = ctx.createOscillator(), lfoG = ctx.createGain();
-    src.buffer = buf; src.loop = true;
-    f.type = 'highpass'; f.frequency.value = 400;
-    g.gain.value = 0.4;
-    lfo.frequency.value = 0.08; lfoG.gain.value = 0.25;
-    lfo.connect(lfoG); lfoG.connect(g.gain);
-    src.connect(f); f.connect(g); g.connect(scGainNode);
-    src.start(); lfo.start(); scNodes.push(src, lfo);
-    // Occasional whoosh
-    function whoosh() {
-      if (scPlaying !== 'wind') return;
-      const osc = ctx.createOscillator(), wg = ctx.createGain();
-      osc.type = 'sawtooth'; osc.frequency.value = 80;
-      wg.gain.setValueAtTime(0, ctx.currentTime);
-      wg.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 1.5);
-      wg.gain.linearRampToValueAtTime(0, ctx.currentTime + 4);
-      osc.connect(wg); wg.connect(scGainNode);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 4.5);
-      setTimeout(whoosh, 4000 + Math.random() * 6000);
-    }
-    whoosh();
-
-  } else if (type === 'fireplace') {
-    // Fireplace = low crackle noise
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const d   = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
-    const g = ctx.createGain();
-    src.buffer = buf; src.loop = true;
-    f.type = 'lowpass'; f.frequency.value = 600;
-    g.gain.value = 0.5;
-    src.connect(f); f.connect(g); g.connect(scGainNode);
-    src.start(); scNodes.push(src);
-    // Crackle pops
-    function crackle() {
-      if (scPlaying !== 'fireplace') return;
-      const osc = ctx.createOscillator(), cg = ctx.createGain();
-      osc.type = 'sawtooth'; osc.frequency.value = 60 + Math.random() * 120;
-      cg.gain.setValueAtTime(0.08 + Math.random() * 0.06, ctx.currentTime);
-      cg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04 + Math.random() * 0.08);
-      osc.connect(cg); cg.connect(scGainNode);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.15);
-      setTimeout(crackle, 80 + Math.random() * 400);
-    }
-    crackle();
-  }
-
-  // Update UI
-  document.querySelectorAll('.soundscape-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sc-panel-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById(`sc-${type}`);
   if (activeBtn) activeBtn.classList.add('active');
-  const nowPlaying = document.getElementById('sc-now-playing');
-  nowPlaying.style.display = 'flex';
-  document.getElementById('sc-playing-text').textContent = `${names[type]} is playing`;
+  document.getElementById('sc-now-playing').style.display = 'flex';
+  document.getElementById('sc-playing-text').textContent =
+    `${SOUNDSCAPE_NAMES[type]} is playing`;
 }
+
+// DO NOT pause on visibility change — let it play in background!!
+// Chrome allows audio to continue if it was started by a user gesture,
+// which it always is since the user clicked a soundscape button.
+
 
 // ── Rest mode ────────────────────────────────────────────────────
 const REST_XP = { 5:5, 10:8, 20:12 };
@@ -1466,21 +1326,19 @@ function setVolume(value) {
   if (audio) audio.volume = parseFloat(value);
 }
 
-document.addEventListener('visibilitychange', () => {
-  if (!audio || !lofiPlaying) return;
-  document.hidden ? audio.pause() : audio.play().catch(()=>{});
-});
+// Audio continues in background — Chrome allows this when started by user gesture
+
 
 
 // ── Feedback form — EmailJS ───────────────────────────────────────
 // Setup (free, one-time):
-// 1. emailjs.com → sign up → Add Gmail service (matlabmatryoshka@gmail.com)
+// 1. emailjs.com → sign up → Add Gmail service (techmatryoshka@gmail.com)
 // 2. Create template with variables: {{from_name}}, {{message}}
 // 3. Replace the three values below with your actual IDs
 
-const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
-const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
-const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJvc';
+const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';
+const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
+const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';
 
 function sendFeedback() {
   const name    = document.getElementById('feedback-name').value.trim() || 'A Bloom user';
@@ -1495,7 +1353,7 @@ function sendFeedback() {
   if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
+      from_name: name, message, reply_to: 'techmatryoshka@gmail.com',
     })
     .then(() => {
       document.getElementById('feedback-sending').style.display = 'none';
