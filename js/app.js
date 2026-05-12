@@ -2,6 +2,15 @@
    Bloom — js/app.js
    ============================================================ */
 
+// ── PWA Service Worker registration ──────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('[Bloom] Service worker registered:', reg.scope))
+      .catch(err => console.log('[Bloom] Service worker failed:', err));
+  });
+}
+
 // ── Cursor ────────────────────────────────────────────────────────
 const cursorEl      = document.getElementById('cursor');
 const cursorTrailEl = document.getElementById('cursor-trail');
@@ -46,6 +55,366 @@ applyTheme(getSavedTheme());
 // ── Modals ────────────────────────────────────────────────────────
 document.getElementById('about-btn').addEventListener('click', () => openModal('about-modal'));
 document.getElementById('designer-btn').addEventListener('click', () => openModal('designer-modal'));
+document.getElementById('rest-btn').addEventListener('click', () => openModal('rest-modal'));
+document.getElementById('feedback-btn').addEventListener('click', () => openModal('feedback-modal'));
+
+// Soundscape button toggles the floating panel
+document.getElementById('soundscape-btn').addEventListener('click', () => {
+  const panel = document.getElementById('soundscape-panel');
+  panel.classList.toggle('visible');
+  playClick();
+});
+// Close soundscape panel when clicking elsewhere
+document.addEventListener('click', e => {
+  const panel = document.getElementById('soundscape-panel');
+  const btn   = document.getElementById('soundscape-btn');
+  if (panel.classList.contains('visible') && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('visible');
+  }
+});
+
+// ── Seasonal themes ───────────────────────────────────────────────
+const SEASONS = {
+  spring: { months:[2,3,4],  name:'Spring', icon:'assets/stickers/cherry-blossom.png' },
+  summer: { months:[5,6,7],  name:'Summer', icon:'assets/stickers/daisy.png'          },
+  autumn: { months:[8,9,10], name:'Autumn', icon:'assets/stickers/maple-leaf.png'     },
+  winter: { months:[11,0,1], name:'Winter', icon:'assets/stickers/pine-cone.png'      },
+};
+
+function getCurrentSeason() {
+  const month = new Date().getMonth();
+  return Object.entries(SEASONS).find(([,v]) => v.months.includes(month))?.[0] || 'spring';
+}
+
+function applySeason() {
+  const season = getCurrentSeason();
+  html.setAttribute('data-season', season);
+  const info = SEASONS[season];
+  // Add/update season chip
+  let chip = document.querySelector('.season-chip');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.className = 'season-chip';
+    document.body.appendChild(chip);
+  }
+  chip.innerHTML = `<img src="${info.icon}" class="season-chip-icon" alt="${info.name}"><span>${info.name}</span>`;
+}
+applySeason();
+
+// ── Task suggestions (rotating placeholder) ───────────────────────
+const TASK_SUGGESTIONS = [
+  'write one paragraph...',
+  'reply to that email...',
+  'read for 15 minutes...',
+  'sketch one idea...',
+  'review your notes...',
+  'tidy one small thing...',
+  'make that one call...',
+  'finish that one slide...',
+  'water your plants...',
+  'stretch for 5 minutes...',
+];
+let suggestionIdx = 0;
+const taskInput = document.getElementById('task-input');
+
+function rotateSuggestion() {
+  if (document.activeElement !== taskInput && !taskInput.value) {
+    suggestionIdx = (suggestionIdx + 1) % TASK_SUGGESTIONS.length;
+    taskInput.placeholder = `e.g. ${TASK_SUGGESTIONS[suggestionIdx]}`;
+  }
+}
+setInterval(rotateSuggestion, 3000);
+
+// ── Nature soundscape engine (Web Audio API) ──────────────────────
+let scCtx = null, scNodes = [], scPlaying = null, scGainNode = null;
+
+function getSoundCtx() {
+  if (!scCtx) scCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return scCtx;
+}
+
+function stopSoundscape() {
+  scNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+  scNodes = [];
+  scPlaying = null;
+  document.querySelectorAll('.soundscape-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sc-now-playing').style.display = 'none';
+}
+
+function setSoundscapeVolume(v) {
+  if (scGainNode) scGainNode.gain.setTargetAtTime(parseFloat(v), getSoundCtx().currentTime, 0.1);
+}
+
+function playSoundscape(type) {
+  stopSoundscape();
+  scPlaying = type;
+  const ctx = getSoundCtx();
+  scGainNode = ctx.createGain();
+  scGainNode.gain.value = parseFloat(document.querySelector('#soundscape-modal .lofi-volume').value);
+  scGainNode.connect(ctx.destination);
+
+  const names = {
+    rain:      'Gentle Rain',
+    forest:    'Forest',
+    birds:     'Birds',
+    stream:    'Stream',
+    wind:      'Wind',
+    fireplace: 'Fireplace',
+  };
+
+  // Generate sounds procedurally
+  if (type === 'rain') {
+    // Rain = filtered white noise with gentle amplitude modulation
+    const bufferSize = ctx.sampleRate * 4;
+    const buffer     = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data       = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer; source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 0.8;
+    const gain2 = ctx.createGain(); gain2.gain.value = 0.6;
+    source.connect(filter); filter.connect(gain2); gain2.connect(scGainNode);
+    source.start(); scNodes.push(source);
+    // Add occasional droplet pings
+    function droplet() {
+      if (scPlaying !== 'rain') return;
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.frequency.value = 1200 + Math.random() * 800;
+      osc.connect(g); g.connect(scGainNode);
+      g.gain.setValueAtTime(0.04, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
+      setTimeout(droplet, 200 + Math.random() * 1000);
+    }
+    droplet();
+
+  } else if (type === 'forest') {
+    // Forest = low rumble + high breeze + random bird chirps
+    [120, 280, 500].forEach(freq => {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+      const d   = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = buf; src.loop = true;
+      f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.5;
+      g.gain.value = freq < 300 ? 0.3 : 0.15;
+      src.connect(f); f.connect(g); g.connect(scGainNode);
+      src.start(); scNodes.push(src);
+    });
+    // Bird chirps
+    function chirp() {
+      if (scPlaying !== 'forest') return;
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = 'sine';
+      const baseFreq = 2000 + Math.random() * 1500;
+      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(baseFreq * 1.4, ctx.currentTime + 0.08);
+      osc.frequency.linearRampToValueAtTime(baseFreq, ctx.currentTime + 0.15);
+      g.gain.setValueAtTime(0.06, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      osc.connect(g); g.connect(scGainNode);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.25);
+      setTimeout(chirp, 1500 + Math.random() * 4000);
+    }
+    chirp();
+
+  } else if (type === 'birds') {
+    // Birds only — many overlapping chirps
+    function bird() {
+      if (scPlaying !== 'birds') return;
+      const notes = 2 + Math.floor(Math.random() * 4);
+      for (let n = 0; n < notes; n++) {
+        setTimeout(() => {
+          const osc = ctx.createOscillator(), g = ctx.createGain();
+          osc.type = 'sine';
+          const f = 1800 + Math.random() * 2000;
+          osc.frequency.setValueAtTime(f, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(f * (1.1 + Math.random() * .4), ctx.currentTime + 0.1);
+          g.gain.setValueAtTime(0.07, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+          osc.connect(g); g.connect(scGainNode);
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.25);
+        }, n * 120);
+      }
+      setTimeout(bird, 800 + Math.random() * 2500);
+    }
+    bird();
+
+  } else if (type === 'stream') {
+    // Stream = multiple filtered noise sources at different rates
+    [200, 600, 1400].forEach((freq, i) => {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const d   = buf.getChannelData(0);
+      for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
+      const g = ctx.createGain(), lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+      src.buffer = buf; src.loop = true;
+      f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2;
+      g.gain.value = [0.4, 0.3, 0.2][i];
+      lfo.frequency.value = 0.3 + i * 0.15; lfoG.gain.value = 0.1;
+      lfo.connect(lfoG); lfoG.connect(g.gain);
+      src.connect(f); f.connect(g); g.connect(scGainNode);
+      src.start(); lfo.start(); scNodes.push(src, lfo);
+    });
+
+  } else if (type === 'wind') {
+    // Wind = slowly modulating filtered noise
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
+    const d   = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
+    const g = ctx.createGain(), lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+    src.buffer = buf; src.loop = true;
+    f.type = 'highpass'; f.frequency.value = 400;
+    g.gain.value = 0.4;
+    lfo.frequency.value = 0.08; lfoG.gain.value = 0.25;
+    lfo.connect(lfoG); lfoG.connect(g.gain);
+    src.connect(f); f.connect(g); g.connect(scGainNode);
+    src.start(); lfo.start(); scNodes.push(src, lfo);
+    // Occasional whoosh
+    function whoosh() {
+      if (scPlaying !== 'wind') return;
+      const osc = ctx.createOscillator(), wg = ctx.createGain();
+      osc.type = 'sawtooth'; osc.frequency.value = 80;
+      wg.gain.setValueAtTime(0, ctx.currentTime);
+      wg.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 1.5);
+      wg.gain.linearRampToValueAtTime(0, ctx.currentTime + 4);
+      osc.connect(wg); wg.connect(scGainNode);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 4.5);
+      setTimeout(whoosh, 4000 + Math.random() * 6000);
+    }
+    whoosh();
+
+  } else if (type === 'fireplace') {
+    // Fireplace = low crackle noise
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d   = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    src.buffer = buf; src.loop = true;
+    f.type = 'lowpass'; f.frequency.value = 600;
+    g.gain.value = 0.5;
+    src.connect(f); f.connect(g); g.connect(scGainNode);
+    src.start(); scNodes.push(src);
+    // Crackle pops
+    function crackle() {
+      if (scPlaying !== 'fireplace') return;
+      const osc = ctx.createOscillator(), cg = ctx.createGain();
+      osc.type = 'sawtooth'; osc.frequency.value = 60 + Math.random() * 120;
+      cg.gain.setValueAtTime(0.08 + Math.random() * 0.06, ctx.currentTime);
+      cg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04 + Math.random() * 0.08);
+      osc.connect(cg); cg.connect(scGainNode);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.15);
+      setTimeout(crackle, 80 + Math.random() * 400);
+    }
+    crackle();
+  }
+
+  // Update UI
+  document.querySelectorAll('.soundscape-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById(`sc-${type}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  const nowPlaying = document.getElementById('sc-now-playing');
+  nowPlaying.style.display = 'flex';
+  document.getElementById('sc-playing-text').textContent = `${names[type]} is playing`;
+}
+
+// ── Rest mode ────────────────────────────────────────────────────
+const REST_XP = { 5:5, 10:8, 20:12 };
+let restInterval = null, restRemaining = 0;
+
+function startRest(mins) {
+  closeModal('rest-modal');
+  restRemaining = mins * 60;
+  document.getElementById('rest-overlay').classList.add('show');
+  updateRestDisplay();
+  clearInterval(restInterval);
+  restInterval = setInterval(() => {
+    restRemaining--;
+    updateRestDisplay();
+    if (restRemaining <= 0) { clearInterval(restInterval); endRest(mins); }
+  }, 1000);
+  playTone(440, 'sine', 0.8, 0.08);
+  setTimeout(() => playTone(550, 'sine', 0.8, 0.06), 400);
+}
+
+function updateRestDisplay() {
+  document.getElementById('rest-digits').textContent =
+    `${pad(Math.floor(restRemaining/60))}:${pad(restRemaining%60)}`;
+}
+
+function endRest(mins) {
+  clearInterval(restInterval);
+  document.getElementById('rest-overlay').classList.remove('show');
+  const xpGain = REST_XP[mins] || 5;
+  awardXP(xpGain);
+  addLogEntry('rest', mins || Math.round((restRemaining)/60), xpGain);
+  playTone(523, 'sine', 0.6, 0.1);
+  setTimeout(() => playTone(659, 'sine', 0.6, 0.08), 200);
+}
+
+// ── Lifetime stats (added to weekly stats modal) ──────────────────
+function getLifetimeStats() {
+  const xp      = parseInt(localStorage.getItem('bloom-xp') || '0', 10);
+  let sessions  = 0, minutes = 0, journalCount = 0;
+  try {
+    // Today's log
+    const today = JSON.parse(localStorage.getItem('bloom-log') || 'null');
+    if (today) {
+      sessions     += (today.entries || []).length;
+      minutes      += (today.entries || []).reduce((s,e) => s + (e.durationMins||0), 0);
+      journalCount += (today.journalEntries || []).length;
+    }
+    // History
+    const hist = JSON.parse(localStorage.getItem('bloom-history') || '{}');
+    Object.values(hist).forEach(day => {
+      sessions     += (day.entries || []).length;
+      minutes      += (day.entries || []).reduce((s,e) => s + (e.durationMins||0), 0);
+      journalCount += (day.journalEntries || []).length;
+    });
+  } catch(e) {}
+  return { xp, sessions, minutes, journalCount };
+}
+
+// Inject lifetime stats into the stats modal after it's built
+const _origBuildWeekly = buildWeeklyStats;
+buildWeeklyStats = function() {
+  _origBuildWeekly();
+  // Add lifetime stats section if not already there
+  let lifetimeSection = document.getElementById('lifetime-section');
+  if (!lifetimeSection) {
+    lifetimeSection = document.createElement('div');
+    lifetimeSection.id = 'lifetime-section';
+    lifetimeSection.className = 'lifetime-section';
+    document.querySelector('.backup-section').before(lifetimeSection);
+  }
+  const { xp, sessions, minutes, journalCount } = getLifetimeStats();
+  lifetimeSection.innerHTML = `
+    <p class="stats-section-title">
+      <img src="assets/stickers/lifetime-stats.png" class="stats-title-icon" alt="">
+      all time
+    </p>
+    <div class="lifetime-grid">
+      <div class="stats-summary-card">
+        <img src="assets/stickers/trophy.png" class="stats-summary-icon" alt="">
+        <span class="stats-summary-num">${sessions}</span>
+        <span class="stats-summary-label">total sessions</span>
+      </div>
+      <div class="stats-summary-card">
+        <img src="assets/stickers/chart.png" class="stats-summary-icon" alt="">
+        <span class="stats-summary-num">${minutes}</span>
+        <span class="stats-summary-label">min focused</span>
+      </div>
+      <div class="stats-summary-card">
+        <img src="assets/stickers/favorite.png" class="stats-summary-icon" alt="">
+        <span class="stats-summary-num">${journalCount}</span>
+        <span class="stats-summary-label">journal entries</span>
+      </div>
+    </div>
+  `;
+};
 
 function openModal(id) {
   document.getElementById(id).classList.add('show');
@@ -53,12 +422,131 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('show');
 }
-// Close on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.remove('show');
   });
 });
+
+function toggleStatsPanel() {
+  buildWeeklyStats();
+  openModal('stats-modal');
+  playClick();
+}
+
+// ── Draggable panels & XP bar ─────────────────────────────────────
+//
+// Makes any element draggable by its drag-handle child (or itself).
+// Works on both mouse and touch (mobile friendly!).
+// Saves position to localStorage so it persists between sessions.
+
+function makeDraggable(el, storageKey, handleSelector) {
+  let isDragging = false;
+  let startX, startY, origLeft, origTop;
+
+  // Try to restore saved position
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    if (saved) {
+      el.style.left      = saved.left;
+      el.style.top       = saved.top;
+      el.style.right     = 'auto';
+      el.style.bottom    = 'auto';
+      el.style.transform = 'none';
+      el.dataset.dragged = '1';
+    }
+  } catch(e) {}
+
+  const handle = handleSelector ? el.querySelector(handleSelector) : el;
+  if (!handle) return;
+
+  handle.style.cursor = 'grab';
+
+  function onStart(e) {
+    isDragging = true;
+    handle.style.cursor = 'grabbing';
+    el.style.transition = 'none'; // disable transitions while dragging
+
+    // Resolve current pixel position
+    const rect = el.getBoundingClientRect();
+    origLeft = rect.left;
+    origTop  = rect.top;
+
+    // Anchor element at absolute position
+    el.style.left      = origLeft + 'px';
+    el.style.top       = origTop  + 'px';
+    el.style.right     = 'auto';
+    el.style.bottom    = 'auto';
+    el.style.transform = 'none';
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX - origLeft;
+    startY = clientY - origTop;
+
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Constrain within viewport with 10px padding
+    const maxX = window.innerWidth  - el.offsetWidth  - 10;
+    const maxY = window.innerHeight - el.offsetHeight - 10;
+    const newX = Math.max(10, Math.min(maxX, clientX - startX));
+    const newY = Math.max(10, Math.min(maxY, clientY - startY));
+
+    el.style.left = newX + 'px';
+    el.style.top  = newY + 'px';
+    e.preventDefault();
+  }
+
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    handle.style.cursor = 'grab';
+    el.style.transition = ''; // re-enable transitions
+    el.dataset.dragged = '1';
+
+    // Save position
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        left: el.style.left,
+        top:  el.style.top,
+      }));
+    } catch(e) {}
+  }
+
+  // Mouse events
+  handle.addEventListener('mousedown',  onStart, { passive:false });
+  document.addEventListener('mousemove', onMove,  { passive:false });
+  document.addEventListener('mouseup',   onEnd);
+
+  // Touch events (mobile)
+  handle.addEventListener('touchstart', onStart, { passive:false });
+  document.addEventListener('touchmove', onMove,  { passive:false });
+  document.addEventListener('touchend',  onEnd);
+}
+
+// Apply draggable to soundscape panel, lo-fi player, and XP bar
+makeDraggable(
+  document.getElementById('soundscape-panel'),
+  'bloom-sc-pos',
+  '.soundscape-panel-title'
+);
+makeDraggable(
+  document.querySelector('.lofi-player'),
+  'bloom-lofi-pos',
+  '.lofi-inner'
+);
+makeDraggable(
+  document.querySelector('.xp-bar-wrap'),
+  'bloom-xp-pos',
+  null
+);
+
 
 // ── Sound effects ─────────────────────────────────────────────────
 let audioCtx = null;
@@ -108,7 +596,6 @@ const BG_IMAGES = [
   { src:'assets/bg/flower9.webp',   size:[55, 88] },
   { src:'assets/bg/flower10.webp',  size:[50, 80] },
   { src:'assets/bg/blossom.webp',   size:[55, 85] },
-  { src:'assets/bg/sunflower.webp', size:[55, 90] },
   { src:'assets/bg/leaf1.webp',     size:[45, 70] },
   { src:'assets/bg/leaf2.webp',     size:[40, 65] },
   // Petals appear 3x more than flowers for that abundant blossom effect
@@ -121,9 +608,44 @@ const BG_IMAGES = [
   { src:'assets/bg/petal3.webp',    size:[28, 48] },
   { src:'assets/bg/petal3.webp',    size:[24, 42] },
   { src:'assets/bg/petal3.webp',    size:[30, 50] },
+  { src:'assets/bg/flower11.png',   size:[45, 72] },
+  { src:'assets/bg/flower12.png',   size:[50, 78] },
+  { src:'assets/bg/flower14.png',   size:[48, 75] },
+  { src:'assets/bg/flower15.png',   size:[45, 72] },
+  { src:'assets/bg/flower16.png',   size:[50, 80] },
+  { src:'assets/bg/flower17.png',   size:[48, 78] },
+  { src:'assets/bg/sparkle1.png',   size:[25, 40] },
+  { src:'assets/bg/sparkle2.png',   size:[28, 44] },
+  { src:'assets/bg/sparkle3.png',   size:[25, 40] },
+  { src:'assets/bg/sparkle4.png',   size:[28, 44] },
   { src:'assets/bg/star2.webp',     size:[30, 50] },
   { src:'assets/bg/star3.png',      size:[26, 44] },
 ];
+
+// Add season-specific floaties dynamically
+const season = getCurrentSeason();
+const SEASONAL_EXTRAS = {
+  spring: [
+    { src:'assets/stickers/cherry-blossom.png', size:[40,65] },
+    { src:'assets/stickers/cherry-blossom.png', size:[35,55] },
+  ],
+  summer: [
+    { src:'assets/stickers/daisy.png', size:[40,65] },
+    { src:'assets/stickers/daisy.png', size:[35,55] },
+  ],
+  autumn: [
+    { src:'assets/stickers/maple-leaf.png', size:[40,65] },
+    { src:'assets/stickers/maple-leaf.png', size:[35,55] },
+  ],
+  winter: [
+    { src:'assets/stickers/snowflake.png', size:[35,55] },
+    { src:'assets/stickers/snowflake.png', size:[30,50] },
+    { src:'assets/stickers/pine-cone.png', size:[30,50] },
+  ],
+};
+if (SEASONAL_EXTRAS[season]) {
+  BG_IMAGES.push(...SEASONAL_EXTRAS[season]);
+}
 
 const floatiesEl = document.getElementById('floaties');
 
@@ -575,86 +1097,422 @@ function celebrate() {
   document.getElementById('celebration').classList.add('show');
 }
 
-// ── Lo-fi radio ───────────────────────────────────────────────────
-// Using ice.somafm.com — the correct direct stream servers (updated May 2026)
-// streams.somafm.com was the old format and is no longer reliable
-const LOFI_STREAMS = [
-  'https://ice5.somafm.com/lush-128-mp3',       // SomaFM Lush — main server
-  'https://ice3.somafm.com/lush-128-mp3',       // SomaFM Lush — alt server
-  'https://ice5.somafm.com/groovesalad-128-mp3',// SomaFM Groove Salad — main
-  'https://ice3.somafm.com/groovesalad-128-mp3',// SomaFM Groove Salad — alt
-  'https://ice5.somafm.com/dronezone-128-mp3',  // SomaFM Drone Zone — ambient
-  'https://ice3.somafm.com/dronezone-128-mp3',  // SomaFM Drone Zone — alt
+document.getElementById('stats-btn').addEventListener('click', () => {
+  toggleStatsPanel();
+});
+
+// ── Weekly Stats Engine ───────────────────────────────────────────
+
+// Flowers for each day's bar — ordered by how "big" the day was
+const BAR_FLOWERS = [
+  'assets/bg/flower13.png',  // sunflower — big day
+  'assets/bg/flower17.png',  // hibiscus
+  'assets/bg/flower16.png',  // lotus
+  'assets/bg/flower5.webp',  // dahlia
+  'assets/bg/flower9.webp',  // pink flower
+  'assets/bg/flower3.webp',  // cosmos
+  'assets/bg/flower12.png',  // small flower — quiet day
 ];
-const LOFI_LABELS = [
-  'ambient sounds for soft focus',
-  'gentle music for gentle minds',
-  'let the music carry you',
-  'you are doing so well, keep going',
+const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const FULL_DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const JOURNAL_FLOWERS_STATS = [
+  'assets/bg/flower10.webp','assets/bg/blossom.webp','assets/bg/flower5.webp',
+  'assets/bg/petal2.webp','assets/bg/flower3.webp',
 ];
-let audio = null, lofiPlaying = false, streamIdx = 0;
+
+function getWeekData() {
+  // Build 7 days ending today
+  const days = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    // Try to load saved data for this day
+    let entries = [], journalEntries = [], note = '';
+    try {
+      const raw = JSON.parse(localStorage.getItem('bloom-log') || 'null');
+      if (raw && raw.date === key) {
+        entries        = raw.entries        || [];
+        journalEntries = raw.journalEntries || [];
+        note           = raw.note           || '';
+      }
+    } catch(e) {}
+    // Also check bloom-history for past days
+    try {
+      const hist = JSON.parse(localStorage.getItem('bloom-history') || '{}');
+      if (hist[key]) {
+        entries        = hist[key].entries        || [];
+        journalEntries = hist[key].journalEntries || [];
+      }
+    } catch(e) {}
+
+    const totalMins = entries.reduce((sum, e) => sum + (e.durationMins || 0), 0);
+    const totalXP   = entries.reduce((sum, e) => sum + (e.xpGained    || 0), 0)
+                    + journalEntries.length * 5;
+    days.push({
+      date: d, key, dayName: DAY_NAMES[d.getDay()],
+      fullName: FULL_DAYS[d.getDay()],
+      isToday: i === 0,
+      entries, journalEntries,
+      totalMins, totalXP,
+      bloomed: entries.length > 0 || journalEntries.length > 0,
+    });
+  }
+  return days;
+}
+
+function getStreak() {
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    let bloomed = false;
+    try {
+      if (key === TODAY_KEY) {
+        const raw = JSON.parse(localStorage.getItem('bloom-log') || 'null');
+        bloomed = raw && (raw.entries?.length > 0 || raw.journalEntries?.length > 0);
+      } else {
+        const hist = JSON.parse(localStorage.getItem('bloom-history') || '{}');
+        const day  = hist[key];
+        bloomed = day && (day.entries?.length > 0 || day.journalEntries?.length > 0);
+      }
+    } catch(e) {}
+    if (bloomed) streak++;
+    else if (i > 0) break; // gap — stop counting
+  }
+  return streak;
+}
+
+function buildWeeklyStats() {
+  const days     = getWeekData();
+  const maxMins  = Math.max(...days.map(d => d.totalMins), 1);
+  const weekXP   = days.reduce((s, d) => s + d.totalXP, 0);
+  const weekSess = days.reduce((s, d) => s + d.entries.length, 0);
+  const weekMins = days.reduce((s, d) => s + d.totalMins, 0);
+  const streak   = getStreak();
+  const bestDay  = days.reduce((best, d) => d.totalMins > best.totalMins ? d : best, days[0]);
+
+  // Dates header
+  const first = days[0].date, last = days[6].date;
+  document.getElementById('stats-dates').textContent =
+    `${first.toLocaleDateString('en-US',{month:'short',day:'numeric'})} — ${last.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+
+  // Summary
+  document.getElementById('streak-num').textContent      = streak;
+  document.getElementById('week-xp-num').textContent     = weekXP;
+  document.getElementById('week-sessions-num').textContent = weekSess;
+  document.getElementById('week-mins-num').textContent   = weekMins;
+
+  // Flower bar chart
+  const chart  = document.getElementById('stats-chart');
+  const labels = document.getElementById('stats-chart-labels');
+  chart.innerHTML = ''; labels.innerHTML = '';
+
+  days.forEach((day, i) => {
+    const pct      = day.totalMins / maxMins;
+    const imgH     = Math.max(28, Math.round(pct * 90));
+    const isEmpty  = day.totalMins === 0;
+    // Pick flower based on how productive the day was
+    const flowerIdx = isEmpty ? -1 : Math.floor((1 - pct) * (BAR_FLOWERS.length - 1));
+    const flowerSrc = isEmpty ? 'assets/stickers/snail.png' : BAR_FLOWERS[Math.max(0, flowerIdx)];
+
+    const wrap = document.createElement('div');
+    wrap.className = 'chart-bar-wrap';
+    wrap.innerHTML = `
+      <div class="chart-bar" style="height:${Math.max(28, imgH)}px">
+        <img src="${flowerSrc}" class="chart-bar-flower${isEmpty?' snail':''}"
+             style="height:${Math.max(28,imgH)}px; width:auto;" alt="${day.dayName}">
+      </div>
+      <span class="chart-bar-mins">${day.totalMins > 0 ? day.totalMins+'m' : ''}</span>
+    `;
+    chart.appendChild(wrap);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'chart-label' + (day.isToday ? ' today' : '');
+    lbl.textContent = day.isToday ? 'today' : day.dayName;
+    labels.appendChild(lbl);
+  });
+
+  // Best day highlight
+  const highlight = document.getElementById('stats-highlight');
+  if (bestDay.totalMins > 0) {
+    highlight.style.display = 'flex';
+    document.getElementById('highlight-day').textContent =
+      `${bestDay.fullName} — ${bestDay.totalMins} min focused, +${bestDay.totalXP} XP`;
+  } else {
+    highlight.style.display = 'none';
+  }
+
+  // Ladybug daily badges
+  const badgeRow = document.getElementById('badge-row');
+  badgeRow.innerHTML = '';
+  days.forEach((day, i) => {
+    const badge = document.createElement('div');
+    badge.className = 'day-badge' + (day.bloomed ? '' : ' empty');
+    badge.style.animationDelay = (i * 0.06) + 's';
+    badge.innerHTML = `
+      <img src="${day.bloomed ? 'assets/stickers/ladybug.png' : 'assets/bg/petal1.webp'}"
+           class="day-badge-img" alt="${day.dayName}">
+      <span class="day-badge-name">${day.isToday ? 'today' : day.dayName}</span>
+    `;
+    badgeRow.appendChild(badge);
+  });
+
+  // Journal highlights — collect all journal entries from the week
+  const journalList = document.getElementById('stats-journal-list');
+  journalList.innerHTML = '';
+  const allJournal = [];
+  days.forEach(day => {
+    (day.journalEntries || []).forEach(e => {
+      allJournal.push({ ...e, dayName: day.isToday ? 'today' : day.dayName });
+    });
+  });
+  if (!allJournal.length) {
+    journalList.innerHTML = '<p class="stats-journal-empty">No journal entries this week yet</p>';
+  } else {
+    [...allJournal].reverse().slice(0, 8).forEach((e, i) => {
+      const div = document.createElement('div');
+      div.className = 'stats-journal-item';
+      const src = JOURNAL_FLOWERS_STATS[i % JOURNAL_FLOWERS_STATS.length];
+      div.innerHTML = `<img src="${src}" class="stats-journal-flower" alt=""><span>${e.text}</span>`;
+      journalList.appendChild(div);
+    });
+  }
+}
+
+// ── Save history daily so weekly stats can look back ─────────────
+// Called once on load — archives yesterday's log into bloom-history
+function archiveYesterdayIfNeeded() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('bloom-log') || 'null');
+    if (!raw || raw.date === TODAY_KEY) return; // today or empty
+    // It's a past day — archive it
+    const hist = JSON.parse(localStorage.getItem('bloom-history') || '{}');
+    if (!hist[raw.date]) {
+      hist[raw.date] = { entries: raw.entries || [], journalEntries: raw.journalEntries || [] };
+      // Keep only last 30 days to avoid storage bloat
+      const keys = Object.keys(hist).sort().reverse().slice(0, 30);
+      const trimmed = {};
+      keys.forEach(k => trimmed[k] = hist[k]);
+      localStorage.setItem('bloom-history', JSON.stringify(trimmed));
+    }
+  } catch(e) {}
+}
+archiveYesterdayIfNeeded();
+
+// ── Export / Import backup ────────────────────────────────────────
+function exportBloom() {
+  const data = {
+    version:    '1.0',
+    exportedAt: new Date().toISOString(),
+    xp:         localStorage.getItem('bloom-xp')      || '0',
+    theme:      localStorage.getItem('bloom-theme')   || 'light',
+    log:        localStorage.getItem('bloom-log')     || 'null',
+    history:    localStorage.getItem('bloom-history') || '{}',
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `bloom-backup-${TODAY_KEY}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  playTone(740, 'sine', 0.3, 0.08);
+  setTimeout(() => playTone(880, 'sine', 0.4, 0.07), 150);
+}
+
+function importBloom(event) {
+  const file   = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version) throw new Error('Invalid backup file');
+      if (data.xp)      localStorage.setItem('bloom-xp',      data.xp);
+      if (data.theme)   localStorage.setItem('bloom-theme',   data.theme);
+      if (data.log)     localStorage.setItem('bloom-log',     data.log);
+      if (data.history) localStorage.setItem('bloom-history', data.history);
+      // Reload everything
+      applyTheme(data.theme || 'light');
+      renderXP();
+      renderLog();
+      renderJournalEntries();
+      buildWeeklyStats();
+      playLevelUp();
+    } catch(err) {
+      alert('That doesn\'t look like a Bloom backup file, darling.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+
+// ── Music player with genre selector ─────────────────────────────
+// SomaFM doesn't have actual lo-fi hip hop — their softest channel
+// is Drone Zone (deep ambient). For real lo-fi beats we link out
+// to Chillhop on YouTube since they don't offer free direct streams.
+
+const MUSIC_SOURCES = [
+  {
+    label: 'Drone Zone',
+    desc:  'deep ambient · softest',
+    type:  'stream',
+    urls:  ['https://ice5.somafm.com/dronezone-128-mp3','https://ice3.somafm.com/dronezone-128-mp3'],
+  },
+  {
+    label: 'Groove Salad',
+    desc:  'ambient downtempo',
+    type:  'stream',
+    urls:  ['https://ice5.somafm.com/groovesalad-128-mp3','https://ice3.somafm.com/groovesalad-128-mp3'],
+  },
+  {
+    label: 'Lo-fi Hip Hop',
+    desc:  'opens Chillhop in new tab',
+    type:  'external',
+    url:   'https://www.youtube.com/watch?v=jfKfPfyJRdk',
+  },
+  {
+    label: 'Lush',
+    desc:  'indie dream pop',
+    type:  'stream',
+    urls:  ['https://ice5.somafm.com/lush-128-mp3','https://ice3.somafm.com/lush-128-mp3'],
+  },
+];
+
+let audio = null, lofiPlaying = false, streamIdx = 0, currentSource = 0;
+
+// Add cycle button to player — next to volume
+(function addCycleBtn() {
+  const controls = document.querySelector('.lofi-controls');
+  if (!controls) return;
+  const btn = document.createElement('button');
+  btn.className = 'lofi-btn cycle-btn';
+  btn.title = 'Switch music style';
+  btn.innerHTML = '<img src="assets/bg/sparkle1.png" style="width:16px;height:16px;object-fit:contain" alt="switch">';
+  btn.onclick = cycleMusic;
+  controls.appendChild(btn);
+})();
+
 function buildAudio() {
   if (audio) { audio.pause(); audio = null; }
+  const src = MUSIC_SOURCES[currentSource];
+  if (src.type === 'external') return;
   audio = new Audio();
-  // Don't set crossOrigin — SomaFM streams don't require it and it can block requests
   audio.volume = parseFloat(document.querySelector('.lofi-volume').value);
-  audio.src    = LOFI_STREAMS[streamIdx];
+  audio.src    = src.urls[streamIdx];
   audio.onerror = () => {
     streamIdx++;
-    if (streamIdx < LOFI_STREAMS.length) {
-      // Try next stream
-      buildAudio();
-      audio.play().catch(() => {});
-    } else {
-      // All streams failed
-      streamIdx = 0;
-      setLofiState(false);
-      document.getElementById('lofi-sub').textContent = 'open somafm.com/lush to listen';
+    if (streamIdx < src.urls.length) { buildAudio(); audio.play().catch(()=>{}); }
+    else {
+      streamIdx = 0; setLofiState(false);
+      document.getElementById('lofi-sub').textContent = 'stream unavailable — try switching';
+    }
+  };
+  audio.onstalled = () => {
+    if (streamIdx < MUSIC_SOURCES[currentSource].urls.length - 1) {
+      streamIdx++; buildAudio(); audio.play().catch(()=>{});
     }
   };
   audio.onplaying = () => {
-    document.getElementById('lofi-sub').textContent =
-      LOFI_LABELS[Math.floor(Math.random() * LOFI_LABELS.length)];
-  };
-  audio.onstalled = () => {
-    // Stream stalled — try next
-    if (streamIdx < LOFI_STREAMS.length - 1) {
-      streamIdx++;
-      buildAudio();
-      audio.play().catch(() => {});
-    }
+    document.getElementById('lofi-sub').textContent = MUSIC_SOURCES[currentSource].desc;
   };
 }
+
 function toggleLofi() {
+  const src = MUSIC_SOURCES[currentSource];
+  if (src.type === 'external') {
+    window.open(src.url, '_blank', 'noopener');
+    document.getElementById('lofi-sub').textContent = 'opened Chillhop in new tab';
+    return;
+  }
   if (!lofiPlaying) {
-    streamIdx = 0; // Always start from first (best) stream
-    buildAudio();
+    streamIdx = 0; buildAudio();
     audio.play()
       .then(() => setLofiState(true))
-      .catch(err => {
-        // If file:// protocol blocks it, show helpful message
-        if (location.protocol === 'file:') {
-          document.getElementById('lofi-sub').textContent = 'host on a server to enable radio';
-        } else {
-          document.getElementById('lofi-sub').textContent = 'tap again to start';
-        }
+      .catch(() => {
+        document.getElementById('lofi-sub').textContent =
+          location.protocol === 'file:' ? 'host on a server to enable radio' : 'tap again to start';
       });
   } else {
-    audio.pause();
-    setLofiState(false);
+    audio.pause(); setLofiState(false);
     document.getElementById('lofi-sub').textContent = 'paused — take a breath';
   }
 }
+
+function cycleMusic() {
+  if (audio) { audio.pause(); audio = null; }
+  setLofiState(false);
+  currentSource = (currentSource + 1) % MUSIC_SOURCES.length;
+  streamIdx = 0;
+  const src = MUSIC_SOURCES[currentSource];
+  const titleEl = document.querySelector('.lofi-title');
+  if (titleEl) titleEl.textContent = src.label;
+  document.getElementById('lofi-sub').textContent = src.desc + ' · tap play';
+  playClick();
+}
+
 function setLofiState(playing) {
   lofiPlaying = playing;
   document.getElementById('play-icon').innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
   document.getElementById('play-btn').classList.toggle('playing', playing);
   document.getElementById('lofi-radio-img').classList.toggle('playing', playing);
 }
+
 function setVolume(value) {
   if (audio) audio.volume = parseFloat(value);
 }
+
 document.addEventListener('visibilitychange', () => {
   if (!audio || !lofiPlaying) return;
   document.hidden ? audio.pause() : audio.play().catch(()=>{});
 });
+
+
+// ── Feedback form — EmailJS ───────────────────────────────────────
+// Setup (free, one-time):
+// 1. emailjs.com → sign up → Add Gmail service (matlabmatryoshka@gmail.com)
+// 2. Create template with variables: {{from_name}}, {{message}}
+// 3. Replace the three values below with your actual IDs
+
+const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
+const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
+const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJvc';
+
+function sendFeedback() {
+  const name    = document.getElementById('feedback-name').value.trim() || 'A Bloom user';
+  const message = document.getElementById('feedback-message').value.trim();
+  if (!message) { document.getElementById('feedback-message').focus(); return; }
+
+  document.getElementById('feedback-send-btn').style.display = 'none';
+  document.getElementById('feedback-sending').style.display  = 'block';
+  document.getElementById('feedback-sent').style.display     = 'none';
+  document.getElementById('feedback-error').style.display    = 'none';
+
+  if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
+    })
+    .then(() => {
+      document.getElementById('feedback-sending').style.display = 'none';
+      document.getElementById('feedback-sent').style.display    = 'block';
+      document.getElementById('feedback-name').value            = '';
+      document.getElementById('feedback-message').value         = '';
+      playTone(740,'sine',0.4,0.08);
+      setTimeout(() => playTone(880,'sine',0.4,0.07), 200);
+    })
+    .catch(() => fallbackMailto(name, message));
+  } else {
+    fallbackMailto(name, message);
+  }
+}
+
+function fallbackMailto(name, message) {
+  document.getElementById('feedback-sending').style.display  = 'none';
+  document.getElementById('feedback-send-btn').style.display = 'block';
+  document.getElementById('feedback-error').style.display    = 'block';
+}
