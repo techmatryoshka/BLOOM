@@ -1332,7 +1332,7 @@ function setVolume(value) {
 
 // ── Feedback form — EmailJS ───────────────────────────────────────
 // Setup (free, one-time):
-// 1. emailjs.com → sign up → Add Gmail service (techmatryoshka@gmail.com)
+// 1. emailjs.com → sign up → Add Gmail service (matlabmatryoshka@gmail.com)
 // 2. Create template with variables: {{from_name}}, {{message}}
 // 3. Replace the three values below with your actual IDs
 
@@ -1353,7 +1353,7 @@ function sendFeedback() {
   if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      from_name: name, message, reply_to: 'techmatryoshka@gmail.com',
+      from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
     })
     .then(() => {
       document.getElementById('feedback-sending').style.display = 'none';
