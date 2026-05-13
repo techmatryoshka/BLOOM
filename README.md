@@ -134,32 +134,6 @@ npx serve .
 
 > **Note:** The lo-fi radio requires internet. Nature soundscapes and all other features work fully offline.
 
----
-
-## Setting up the Feedback Form
-
-The in-app feedback form uses [EmailJS](https://emailjs.com) (free tier: 200 emails/month).
-
-1. Sign up at **emailjs.com**
-2. Add Gmail as an email service
-3. Create a template with `{{from_name}}` and `{{message}}` variables
-4. In `js/app.js` at the bottom, replace:
-
-```js
-const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';
-const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
-const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';
-```
-
-5. In EmailJS → Account → Security, add your domain to restrict key usage
-
----
-
-## Installing as an Android / iOS App (PWA)
-
-1. Open `https://techmatryoshka.github.io/BLOOM/` in Chrome (Android) or Safari (iOS)
-2. Tap the browser menu → **"Add to Home Screen"**
-3. Bloom appears on your home screen with her own icon, opens fullscreen
 
 ---
 
