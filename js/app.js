@@ -1477,7 +1477,7 @@ function setVolume(value) {
 // ── Feedback form — EmailJS ───────────────────────────────────────
 const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
 const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
-const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJv';
+const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJvc';
 
 // Initialise once on page load
 window.addEventListener('load', () => {
