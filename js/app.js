@@ -6,10 +6,92 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('[Bloom] Service worker registered:', reg.scope))
-      .catch(err => console.log('[Bloom] Service worker failed:', err));
+      .then(reg => console.log('[Bloom] SW registered:', reg.scope))
+      .catch(err => console.log('[Bloom] SW failed:', err));
   });
 }
+
+// ── Splash screen ─────────────────────────────────────────────────
+(function initSplash() {
+  const splash = document.getElementById('splash-screen');
+  const subEl  = document.getElementById('splash-subtitle');
+  const canvas = document.getElementById('splash-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  // Content set via CSS animations — just ensure text is there
+  // (splash-title and splash-subtitle text is in HTML, butterfly fades in last)
+
+  // Petal rain on splash canvas — slower, more dreamy
+  const petalImgsSplash = ['assets/bg/petal1.webp','assets/bg/petal2.webp','assets/bg/petal3.webp']
+    .map(src => { const img = new Image(); img.src = src; return img; });
+
+  const splashPetals = Array.from({ length: 60 }, () => ({
+    x: Math.random() * window.innerWidth,
+    y: -Math.random() * window.innerHeight * 0.6,
+    size: 16 + Math.random() * 30,
+    speedY: .7 + Math.random() * 1.2,
+    speedX: (Math.random() - .5) * .6,
+    rot: Math.random() * Math.PI * 2,
+    rotS: (Math.random() - .5) * .03,
+    sway: Math.random() * Math.PI * 2,
+    swayS: .01 + Math.random() * .016,
+    img: petalImgsSplash[Math.floor(Math.random() * 3)],
+    opacity: .45 + Math.random() * .55,
+  }));
+
+  let splashRaf;
+  function animateSplash() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    splashPetals.forEach(p => {
+      p.sway += p.swayS; p.x += p.speedX + Math.sin(p.sway) * .6;
+      p.y += p.speedY; p.rot += p.rotS;
+      if (p.y > canvas.height + 40) { p.y = -40; p.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.translate(p.x + p.size/2, p.y + p.size/2);
+      ctx.rotate(p.rot);
+      try { ctx.drawImage(p.img, -p.size/2, -p.size/2, p.size, p.size); } catch(e) {}
+      ctx.restore();
+    });
+    splashRaf = requestAnimationFrame(animateSplash);
+  }
+  animateSplash();
+
+  // Timeline: title (.2s) → subtitle (1s) → butterfly (1.8s + 1s anim = 2.8s) → hide at 3.8s
+  setTimeout(() => {
+    splash.classList.add('hide');
+    cancelAnimationFrame(splashRaf);
+    // Trigger card entrance animation as splash fades
+    document.getElementById('main-card').classList.add('entrance');
+    setTimeout(() => {
+      splash.style.display = 'none';
+      document.getElementById('main-card').classList.remove('entrance');
+    }, 1100);
+  }, 3800);
+})();
+
+// ── Petal cursor trail ────────────────────────────────────────────
+const TRAIL_PETALS = ['assets/bg/petal1.webp','assets/bg/petal2.webp','assets/bg/petal3.webp'];
+const petalContainer = document.getElementById('cursor-petals');
+let lastPetalTime = 0;
+
+document.addEventListener('mousemove', e => {
+  const now = Date.now();
+  if (now - lastPetalTime < 80) return; // throttle to every 80ms
+  lastPetalTime = now;
+
+  const petal = document.createElement('img');
+  petal.src       = TRAIL_PETALS[Math.floor(Math.random() * TRAIL_PETALS.length)];
+  petal.className = 'cursor-petal';
+  petal.style.left = (e.clientX - 7 + (Math.random()-0.5)*16) + 'px';
+  petal.style.top  = (e.clientY - 7 + (Math.random()-0.5)*16) + 'px';
+  petal.style.animationDuration = (.6 + Math.random() * .4) + 's';
+  petalContainer.appendChild(petal);
+  setTimeout(() => petal.remove(), 900);
+});
 
 // ── Cursor ────────────────────────────────────────────────────────
 const cursorEl      = document.getElementById('cursor');
@@ -449,13 +531,24 @@ function playSessionEnd() {
   setTimeout(() => playTone(1046.5, 'sine', 1.0, 0.10), 300);
   setTimeout(() => playTone(880,    'sine', 1.5, 0.08), 600);
 }
-function playClick() { playTone(600, 'sine', 0.1, 0.04); }
+function playClick() { playTone(600, 'sine', 0.1, 0.03); }
+function playHover()  { playTone(800, 'sine', 0.07, 0.015); }
 function playLevelUp() {
   [523, 659, 784, 1047].forEach((f, i) =>
     setTimeout(() => playTone(f, 'sine', 0.5, 0.12), i * 120));
 }
+
+// Click sounds on all interactive elements
 document.querySelectorAll('.btn, .tab, .lofi-btn, .theme-toggle, .icon-btn').forEach(b =>
   b.addEventListener('click', playClick));
+
+// Hover sounds — very soft chime on hover
+document.querySelectorAll('.btn, .icon-btn, .tab').forEach(b =>
+  b.addEventListener('mouseenter', playHover));
+
+// Add shimmer class to cast spell button
+const castBtn = document.querySelector('.btn[onclick="startBreathing()"]');
+if (castBtn) castBtn.classList.add('shimmer');
 
 // ── Floaties — TOP to BOTTOM, no butterfly/clover/iris ────────────
 // Petals are weighted heavily for abundant blossom-falling effect
@@ -576,10 +669,15 @@ function spawnPetals(count) {
 
 function animatePetals() {
   pctx.clearRect(0, 0, petalCanvas.width, petalCanvas.height);
-  petals = petals.filter(p => p.y < petalCanvas.height + 80);
+  petals = petals.filter(p => p.opacity > 0.01);
   petals.forEach(p => {
     p.sway += p.swaySpeed; p.x += p.speedX + Math.sin(p.sway) * 0.8;
     p.y += p.speedY; p.rot += p.rotSpeed;
+    // Fade out gently as petal falls into lower 40% of screen
+    const fadeStart = petalCanvas.height * 0.6;
+    if (p.y > fadeStart) {
+      p.opacity = Math.max(0, p.opacity - 0.012);
+    }
     pctx.save();
     pctx.globalAlpha = p.opacity;
     pctx.translate(p.x + p.size / 2, p.y + p.size / 2);
@@ -666,7 +764,12 @@ function getNextLevel()    { return LEVELS[getCurrentLevelIdx() + 1] || null; }
 function renderXP() {
   const cur = getCurrentLevel(), next = getNextLevel();
   const pct = next ? Math.min(100, ((totalXP - cur.xp) / (next.xp - cur.xp)) * 100) : 100;
-  document.getElementById('xp-fill').style.width       = pct + '%';
+  const fillEl = document.getElementById('xp-fill');
+  fillEl.style.width = pct + '%';
+  // Sparkle the XP bar every time it updates
+  fillEl.classList.remove('sparkling');
+  void fillEl.offsetWidth; // reflow to restart animation
+  fillEl.classList.add('sparkling');
   document.getElementById('xp-level-name').textContent = cur.name;
   document.getElementById('xp-level-img').src          = cur.img;
   document.getElementById('xp-pts').textContent        = next
@@ -894,16 +997,42 @@ function startFocus() {
   const task = document.getElementById('task-input').value.trim();
   if (!task) { document.getElementById('task-input').focus(); return; }
   currentTask = task; sessions++;
-  document.getElementById('task-label').textContent     = task;
-  document.getElementById('session-info').textContent   = `session ${sessions}`;
-  document.getElementById('input-screen').style.display = 'none';
-  document.getElementById('focus-screen').style.display  = 'block';
-  document.getElementById('main-card').classList.add('timer-running');
-  startTime = Date.now(); pausedOffset = 0; pausedAt = null; paused = false; running = true;
-  document.getElementById('pause-btn').textContent = 'pause';
-  updateTimerDisplay();
-  clearInterval(tickInterval);
-  tickInterval = setInterval(tick, 250);
+  document.getElementById('task-label').textContent   = task;
+  document.getElementById('session-info').textContent = `session ${sessions}`;
+
+  const card = document.getElementById('main-card');
+
+  // Remove any leftover animation classes
+  card.classList.remove('entrance', 'appearing');
+
+  // Step 1: dissolve out
+  card.classList.add('dissolving');
+
+  // Step 2: swap screens at peak of dissolve
+  setTimeout(() => {
+    // Swap content
+    document.getElementById('input-screen').style.display = 'none';
+    document.getElementById('focus-screen').style.display = 'block';
+    document.getElementById('main-card').classList.add('timer-running');
+
+    // Fire petals NOW — let them fall and fade naturally
+    startPetalRain();
+    // Don't hard-clear — let the canvas animation drain naturally as petals fall off screen
+
+    // Remove dissolve, add appear — in same frame so no flash
+    card.classList.remove('dissolving');
+    card.classList.add('appearing');
+    setTimeout(() => card.classList.remove('appearing'), 750);
+
+    // Start timer
+    startTime = Date.now(); pausedOffset = 0; pausedAt = null;
+    paused = false; running = true;
+    document.getElementById('pause-btn').textContent = 'pause';
+    document.getElementById('timer-digits').classList.add('pulsing');
+    updateTimerDisplay();
+    clearInterval(tickInterval);
+    tickInterval = setInterval(tick, 250);
+  }, 480);
 }
 function togglePause() {
   if (!running) return;
@@ -929,6 +1058,7 @@ function resetAll() {
   const circ = 2 * Math.PI * 70;
   document.getElementById('timer-ring').style.strokeDasharray  = circ;
   document.getElementById('timer-ring').style.strokeDashoffset = 0;
+  document.getElementById('timer-digits').classList.remove('pulsing');
   document.getElementById('timer-digits').textContent = fmtSecs(durationSecs);
   petals = []; petalCanvas.classList.remove('active');
   newAffirmation();
