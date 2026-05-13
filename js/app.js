@@ -1353,6 +1353,7 @@ function setVolume(value) {
 const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
 const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
 const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJv';
+emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
 function sendFeedback() {
   const name    = document.getElementById('feedback-name').value.trim() || 'A Bloom user';
@@ -1365,7 +1366,6 @@ function sendFeedback() {
   document.getElementById('feedback-error').style.display    = 'none';
 
   if (typeof emailjs !== 'undefined') {
-    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
     })
