@@ -1345,11 +1345,16 @@ function setVolume(value) {
 
 
 // ── Feedback form — EmailJS ───────────────────────────────────────
-
 const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
 const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
 const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJv';
-emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+// Initialise once on page load
+window.addEventListener('load', () => {
+  if (typeof emailjs !== 'undefined') {
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  }
+});
 
 function sendFeedback() {
   const name    = document.getElementById('feedback-name').value.trim() || 'A Bloom user';
@@ -1361,22 +1366,27 @@ function sendFeedback() {
   document.getElementById('feedback-sent').style.display     = 'none';
   document.getElementById('feedback-error').style.display    = 'none';
 
-  if (typeof emailjs !== 'undefined') {
-    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
-    })
-    .then(() => {
-      document.getElementById('feedback-sending').style.display = 'none';
-      document.getElementById('feedback-sent').style.display    = 'block';
-      document.getElementById('feedback-name').value            = '';
-      document.getElementById('feedback-message').value         = '';
-      playTone(740,'sine',0.4,0.08);
-      setTimeout(() => playTone(880,'sine',0.4,0.07), 200);
-    })
-    .catch(() => fallbackMailto(name, message));
-  } else {
-    fallbackMailto(name, message);
+  if (typeof emailjs === 'undefined') {
+    fallbackMailto(name, message); return;
   }
+
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    from_name: name,
+    message:   message,
+    reply_to:  'matlabmatryoshka@gmail.com',
+  })
+  .then(() => {
+    document.getElementById('feedback-sending').style.display = 'none';
+    document.getElementById('feedback-sent').style.display    = 'block';
+    document.getElementById('feedback-name').value            = '';
+    document.getElementById('feedback-message').value         = '';
+    playTone(740,'sine',0.4,0.08);
+    setTimeout(() => playTone(880,'sine',0.4,0.07), 200);
+  })
+  .catch(err => {
+    console.error('EmailJS error:', err);
+    fallbackMailto(name, message);
+  });
 }
 
 function fallbackMailto(name, message) {
