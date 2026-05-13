@@ -1345,10 +1345,6 @@ function setVolume(value) {
 
 
 // ── Feedback form — EmailJS ───────────────────────────────────────
-// Setup (free, one-time):
-// 1. emailjs.com → sign up → Add Gmail service (matlabmatryoshka@gmail.com)
-// 2. Create template with variables: {{from_name}}, {{message}}
-// 3. Replace the three values below with your actual IDs
 
 const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
 const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
