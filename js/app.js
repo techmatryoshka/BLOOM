@@ -302,6 +302,7 @@ function toggleStatsPanel() {
 
 function makeDraggable(el, storageKey, handleSelector) {
   let isDragging = false;
+  let hasMoved   = false;  // ← key fix: track if mouse actually moved
   let startX, startY, origLeft, origTop;
 
   // Try to restore saved position
@@ -323,36 +324,49 @@ function makeDraggable(el, storageKey, handleSelector) {
   handle.style.cursor = 'grab';
 
   function onStart(e) {
-    isDragging = true;
-    handle.style.cursor = 'grabbing';
-    el.style.transition = 'none'; // disable transitions while dragging
+    // Don't start drag if clicking a button, input or anchor inside the panel
+    if (e.target.closest('button, input, a, label, select')) return;
 
-    // Resolve current pixel position
+    isDragging = true;
+    hasMoved   = false;
+    handle.style.cursor = 'grabbing';
+
     const rect = el.getBoundingClientRect();
     origLeft = rect.left;
     origTop  = rect.top;
-
-    // Anchor element at absolute position
-    el.style.left      = origLeft + 'px';
-    el.style.top       = origTop  + 'px';
-    el.style.right     = 'auto';
-    el.style.bottom    = 'auto';
-    el.style.transform = 'none';
 
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     startX = clientX - origLeft;
     startY = clientY - origTop;
 
-    e.preventDefault();
+    e.stopPropagation();
   }
 
   function onMove(e) {
     if (!isDragging) return;
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-    // Constrain within viewport with 10px padding
+    const dx = Math.abs(clientX - (startX + origLeft));
+    const dy = Math.abs(clientY - (startY + origTop));
+
+    // Only start actually moving after 5px threshold
+    if (!hasMoved && dx < 5 && dy < 5) return;
+    hasMoved = true;
+
+    // Now anchor element at absolute position (only once)
+    if (el.style.position !== 'fixed' || !el.dataset.anchored) {
+      el.style.left      = origLeft + 'px';
+      el.style.top       = origTop  + 'px';
+      el.style.right     = 'auto';
+      el.style.bottom    = 'auto';
+      el.style.transform = 'none';
+      el.style.transition = 'none';
+      el.dataset.anchored = '1';
+    }
+
     const maxX = window.innerWidth  - el.offsetWidth  - 10;
     const maxY = window.innerHeight - el.offsetHeight - 10;
     const newX = Math.max(10, Math.min(maxX, clientX - startX));
@@ -360,6 +374,7 @@ function makeDraggable(el, storageKey, handleSelector) {
 
     el.style.left = newX + 'px';
     el.style.top  = newY + 'px';
+
     e.preventDefault();
   }
 
@@ -367,25 +382,24 @@ function makeDraggable(el, storageKey, handleSelector) {
     if (!isDragging) return;
     isDragging = false;
     handle.style.cursor = 'grab';
-    el.style.transition = ''; // re-enable transitions
-    el.dataset.dragged = '1';
+    el.style.transition = '';
+    el.dataset.anchored = '';
 
-    // Save position
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({
-        left: el.style.left,
-        top:  el.style.top,
-      }));
-    } catch(e) {}
+    if (hasMoved) {
+      el.dataset.dragged = '1';
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({
+          left: el.style.left,
+          top:  el.style.top,
+        }));
+      } catch(e) {}
+    }
   }
 
-  // Mouse events
-  handle.addEventListener('mousedown',  onStart, { passive:false });
-  document.addEventListener('mousemove', onMove,  { passive:false });
+  handle.addEventListener('mousedown',  onStart);
+  document.addEventListener('mousemove', onMove, { passive:false });
   document.addEventListener('mouseup',   onEnd);
-
-  // Touch events (mobile)
-  handle.addEventListener('touchstart', onStart, { passive:false });
+  handle.addEventListener('touchstart', onStart, { passive:true });
   document.addEventListener('touchmove', onMove,  { passive:false });
   document.addEventListener('touchend',  onEnd);
 }
@@ -1338,7 +1352,7 @@ function setVolume(value) {
 
 const EMAILJS_SERVICE_ID  = 'service_qvby9tx';
 const EMAILJS_TEMPLATE_ID = 'template_6f128mw';
-const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJvc';
+const EMAILJS_PUBLIC_KEY  = 'wvcPyqj6vPOvRoJv';
 
 function sendFeedback() {
   const name    = document.getElementById('feedback-name').value.trim() || 'A Bloom user';
@@ -1350,7 +1364,7 @@ function sendFeedback() {
   document.getElementById('feedback-sent').style.display     = 'none';
   document.getElementById('feedback-error').style.display    = 'none';
 
-  if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'wvcPyqj6vPOvRoJvc') {
+  if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'wvcPyqj6vPOvRoJv') {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       from_name: name, message, reply_to: 'matlabmatryoshka@gmail.com',
