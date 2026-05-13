@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloom — a gentle focus spell</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bloom">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+  <meta name="msapplication-TileImage" content="assets/icons/icon-144x144.png">
+  <meta name="msapplication-TileColor" content="#e8a0b4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Lora:ital,wght@0,400;1,400&family=Satisfy&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- EmailJS for feedback form -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+
+  <!-- Custom cursor -->
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+  <!-- Petal cursor trails -->
+  <div id="cursor-petals"></div>
+
+  <!-- SPLASH SCREEN -->
+  <div class="splash-screen" id="splash-screen">
+    <div class="splash-content">
+      <h1 class="splash-title">Bloom</h1>
+      <p class="splash-subtitle">a gentle focus spell</p>
+      <img src="assets/bg/butterfly.webp" class="splash-butterfly" id="splash-butterfly" alt="bloom">
+    </div>
+    <canvas id="splash-canvas"></canvas>
+  </div>
+
+  <!-- Top bar -->
+  <!-- XP BAR — top center -->
+  <div class="xp-bar-wrap">
+    <div class="xp-inner">
+      <img src="assets/stickers/seedling.png" class="xp-level-img" id="xp-level-img" alt="level">
+      <div class="xp-track"><div class="xp-fill" id="xp-fill"></div></div>
+      <div class="xp-meta">
+        <span class="xp-level-name" id="xp-level-name">Seedling</span>
+        <span class="xp-pts" id="xp-pts">0 / 50 XP</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar column — right side, vertical -->
+  <div class="sidebar">
+    <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark/light mode">
+      <img id="theme-icon-img" src="assets/stickers/moon.webp" alt="toggle theme" class="theme-icon-img">
+    </button>
+    <button class="icon-btn" id="stats-btn" aria-label="Weekly stats">
+      <img src="assets/stickers/calendar.png" class="icon-btn-img" alt="stats">
+    </button>
+    <button class="icon-btn" id="soundscape-btn" aria-label="Nature soundscape">
+      <img src="assets/stickers/nature-sound-icon.png" class="icon-btn-img" alt="soundscape">
+    </button>
+    <button class="icon-btn" id="rest-btn" aria-label="Rest mode">
+      <img src="assets/stickers/teacup.png" class="icon-btn-img" alt="rest">
+    </button>
+    <button class="icon-btn" id="about-btn" aria-label="About Bloom">
+      <img src="assets/stickers/flower10.webp" class="icon-btn-img" alt="about">
+    </button>
+    <button class="icon-btn" id="designer-btn" aria-label="Meet the designer">
+      <img src="assets/stickers/diary.webp" class="icon-btn-img" alt="designer">
+    </button>
+    <button class="icon-btn" id="feedback-btn" aria-label="Send feedback">
+      <img src="assets/stickers/feedback.png" class="icon-btn-img" alt="feedback">
+    </button>
+  </div>
+
+  <!-- Floating soundscape panel — appears next to main card -->
+  <div class="soundscape-panel" id="soundscape-panel">
+    <p class="soundscape-panel-title">
+      <img src="assets/stickers/nature-sound-icon.png" class="sc-panel-icon" alt="">
+      Nature Sounds
+    </p>
+    <div class="sc-panel-grid">
+      <button class="sc-panel-btn" onclick="playSoundscape('rain')" id="sc-rain">
+        <img src="assets/stickers/rain.png" class="sc-panel-img" alt="rain">
+        <span>Rain</span>
+      </button>
+      <button class="sc-panel-btn" onclick="playSoundscape('forest')" id="sc-forest">
+        <img src="assets/stickers/forest.png" class="sc-panel-img" alt="forest">
+        <span>Forest</span>
+      </button>
+      <button class="sc-panel-btn" onclick="playSoundscape('birds')" id="sc-birds">
+        <img src="assets/stickers/bird.png" class="sc-panel-img" alt="birds">
+        <span>Birds</span>
+      </button>
+      <button class="sc-panel-btn" onclick="playSoundscape('stream')" id="sc-stream">
+        <img src="assets/stickers/water-stream.png" class="sc-panel-img" alt="stream">
+        <span>Stream</span>
+      </button>
+      <button class="sc-panel-btn" onclick="playSoundscape('wind')" id="sc-wind">
+        <img src="assets/stickers/wind.png" class="sc-panel-img" alt="wind">
+        <span>Wind</span>
+      </button>
+      <button class="sc-panel-btn" onclick="playSoundscape('fireplace')" id="sc-fireplace">
+        <img src="assets/stickers/fireplace.png" class="sc-panel-img" alt="fireplace">
+        <span>Fireplace</span>
+      </button>
+    </div>
+    <button class="sc-stop-btn" onclick="stopSoundscape()">
+      <img src="assets/stickers/stop-button.png" class="sc-stop-icon" alt="stop">
+      Stop
+    </button>
+    <div class="sc-volume-row">
+      <img src="assets/bg/leaf2.webp" class="sc-vol-leaf" alt="">
+      <input class="lofi-volume sc-vol-slider" type="range" min="0" max="1" step="0.01" value="0.4"
+             oninput="setSoundscapeVolume(this.value)" aria-label="Soundscape volume">
+      <img src="assets/bg/leaf2.webp" class="sc-vol-leaf" alt="">
+    </div>
+    <div class="sc-now-playing" id="sc-now-playing" style="display:none">
+      <img src="assets/bg/sparkle1.png" class="sc-playing-icon" alt="">
+      <span id="sc-playing-text">playing</span>
+    </div>
+  </div>
+
+  <div class="bg-layer" id="bg-layer"></div>
+  <div id="floaties"></div>
+  <canvas id="petal-canvas"></canvas>
+
+  <!-- ABOUT BLOOM MODAL -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal-card about-card">
+      <button class="modal-close" onclick="closeModal('about-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/flower10.webp" class="modal-hero-img" alt="bloom flower">
+      <h2 class="modal-title">About Bloom</h2>
+
+      <div class="free-banner">
+        <img src="assets/bg/star2.webp" class="free-star" alt="">
+        <p>Bloom is free and always will be.<br>No ads, no paywalls.<br>Enjoy your growth, carefree.</p>
+        <img src="assets/bg/star2.webp" class="free-star" alt="">
+      </div>
+
+      <p class="modal-body">
+        Bloom was designed for neurodivergent minds by a neurodivergent mind — because you need
+        a little gentleness and grace to get going. She is not here to turn you into a productive
+        machine. She asks you to tend to one thing, like a gardener taking care of one flower at a time.
+      </p>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/seedling.png" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">XP &amp; Growth System</p>
+          <p class="feature-body">Every focus session and journal entry earns you XP. Grow from Seedling to Fairy Queen across 7 levels — each unlocking new affirmations.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/notebook.webp" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Daily Bloom Log &amp; Journal</p>
+          <p class="feature-body">A gentle daily record of everything you tended to, plus a personal journal that resets every 24 hours. Writing earns you XP too.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/candle.png" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Rest Mode</p>
+          <p class="feature-body">Rest is not giving up — it is how you bloom. Timed rest sessions earn you XP and count toward your streak. You deserve to rest.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/nature-sound-icon.png" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Nature Soundscapes</p>
+          <p class="feature-body">Rain, forest, birds, stream, wind, fireplace — six ambient soundscapes generated in real time to help with sensory regulation and focus.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/calendar.png" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Week in Bloom</p>
+          <p class="feature-body">A weekly view of your focus time, streak, XP, ladybug bloom badges, and journal highlights. See your patterns and celebrate your growth.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/radio.png" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Lo-fi Focus Radio</p>
+          <p class="feature-body">Four music styles including Drone Zone, Groove Salad, and a Chillhop lo-fi link. Draggable player goes wherever you like.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/bg/leaf1.webp" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Privacy First</p>
+          <p class="feature-body">Everything stays on your device. No accounts, no tracking, no servers. Export your data anytime to back it up — it belongs to you.</p>
+        </div>
+      </div>
+
+      <div class="about-feature-row">
+        <img src="assets/stickers/cherry-blossom.png" class="feature-icon" alt="">
+        <div>
+          <p class="feature-title">Seasonal Themes</p>
+          <p class="feature-body">Bloom changes with the seasons — cherry blossoms in spring, daisies in summer, maple leaves in autumn, snowflakes in winter.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MEET THE DESIGNER MODAL -->
+  <div class="modal-overlay" id="designer-modal">
+    <div class="modal-card designer-card">
+      <button class="modal-close" onclick="closeModal('designer-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/diary.webp" class="modal-hero-img designer-hero" alt="diary">
+      <h2 class="modal-title">Meet the Designer</h2>
+      <img src="assets/bg/flower7.webp" class="designer-divider-flower" alt="">
+
+      <p class="designer-name">Amina Radončić</p>
+      <p class="designer-title">Neuroadaptive System Engineer</p>
+
+      <p class="modal-body">
+        Hi! I'm Amina — a neuroadaptive system engineer who designs whimsical systems
+        for neurodivergent minds. I hold an MSc in Bioengineering and am currently a
+        PhD student in Electrical Engineering and IT.
+      </p>
+      <p class="modal-body">
+        As a person with AuDHD who constantly struggled with focus and time blindness,
+        I decided to create Bloom for minds alike — hoping that it would inspire you
+        to fulfill the tasks that feel impossible to start.
+      </p>
+
+      <div class="designer-quote">
+        <img src="assets/bg/petal2.webp" class="quote-petal" alt="">
+        <p>"One flower at a time."</p>
+      </div>
+
+      <a href="https://www.linkedin.com/in/amina-radon%C4%8Di%C4%87-090b99288/?skipRedirect=true"
+         target="_blank" rel="noopener" class="linkedin-btn">
+        <img src="assets/bg/star2.webp" class="linkedin-icon" alt="">
+        Follow on LinkedIn
+      </a>
+      <p class="modal-note">Keep up with all my cool projects</p>
+    </div>
+  </div>
+
+  <!-- SOUNDSCAPE MODAL -->
+  <div class="modal-overlay" id="soundscape-modal">
+    <div class="modal-card soundscape-card">
+      <button class="modal-close" onclick="closeModal('soundscape-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/rest-mode.png" class="modal-hero-img" alt="soundscape">
+      <h2 class="modal-title">Nature Sounds</h2>
+      <p class="modal-body" style="text-align:center;margin-bottom:20px">Choose a soundscape to play while you focus. All sounds are generated softly — no files, no downloads.</p>
+      <div class="soundscape-grid" id="soundscape-grid">
+        <button class="soundscape-btn" onclick="playSoundscape('rain')" id="sc-rain">
+          <span class="sc-emoji">🌧️</span>
+          <span class="sc-label">Gentle Rain</span>
+        </button>
+        <button class="soundscape-btn" onclick="playSoundscape('forest')" id="sc-forest">
+          <span class="sc-emoji">🌲</span>
+          <span class="sc-label">Forest</span>
+        </button>
+        <button class="soundscape-btn" onclick="playSoundscape('birds')" id="sc-birds">
+          <span class="sc-emoji">🐦</span>
+          <span class="sc-label">Birds</span>
+        </button>
+        <button class="soundscape-btn" onclick="playSoundscape('stream')" id="sc-stream">
+          <span class="sc-emoji">💧</span>
+          <span class="sc-label">Stream</span>
+        </button>
+        <button class="soundscape-btn" onclick="playSoundscape('wind')" id="sc-wind">
+          <span class="sc-emoji">🍃</span>
+          <span class="sc-label">Wind</span>
+        </button>
+        <button class="soundscape-btn" onclick="playSoundscape('fireplace')" id="sc-fireplace">
+          <span class="sc-emoji">🕯️</span>
+          <span class="sc-label">Fireplace</span>
+        </button>
+        <button class="soundscape-btn stop-btn" onclick="stopSoundscape()" id="sc-stop">
+          <img src="assets/bg/leaf1.webp" class="sc-img" alt="">
+          <span class="sc-label">Stop</span>
+        </button>
+      </div>
+      <div class="sc-now-playing" id="sc-now-playing" style="display:none">
+        <img src="assets/bg/sparkle1.png" class="sc-playing-icon" alt="">
+        <span id="sc-playing-text">Gentle Rain is playing</span>
+      </div>
+      <div class="sc-volume-row">
+        <img src="assets/bg/leaf2.webp" class="sc-vol-leaf" alt="">
+        <input class="lofi-volume" type="range" min="0" max="1" step="0.01" value="0.4"
+               oninput="setSoundscapeVolume(this.value)" aria-label="Soundscape volume">
+        <img src="assets/bg/leaf2.webp" class="sc-vol-leaf" alt="">
+      </div>
+    </div>
+  </div>
+
+  <!-- REST MODE MODAL -->
+  <div class="modal-overlay" id="rest-modal">
+    <div class="modal-card rest-card">
+      <button class="modal-close" onclick="closeModal('rest-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/teacup.png" class="modal-hero-img" alt="rest">
+      <h2 class="modal-title">Rest Mode</h2>
+      <p class="modal-body" style="text-align:center">Rest is not giving up. Rest is how you bloom.<br>Choose a gentle rest timer — you still earn XP for taking care of yourself.</p>
+      <div class="rest-options">
+        <button class="rest-opt-btn" onclick="startRest(5)">
+          <img src="assets/stickers/teacup.png" class="rest-opt-icon" alt="">
+          <span class="rest-opt-label">5 min</span>
+          <span class="rest-opt-sub">+5 XP</span>
+        </button>
+        <button class="rest-opt-btn" onclick="startRest(10)">
+          <img src="assets/stickers/rest-mode.png" class="rest-opt-icon" alt="">
+          <span class="rest-opt-label">10 min</span>
+          <span class="rest-opt-sub">+8 XP</span>
+        </button>
+        <button class="rest-opt-btn" onclick="startRest(20)">
+          <img src="assets/stickers/snowflake.png" class="rest-opt-icon" alt="">
+          <span class="rest-opt-label">20 min</span>
+          <span class="rest-opt-sub">+12 XP</span>
+        </button>
+      </div>
+      <p class="rest-note">Rest sessions count toward your streak too</p>
+    </div>
+  </div>
+
+  <!-- REST TIMER OVERLAY -->
+  <div id="rest-overlay">
+    <div class="breathing-card">
+      <img src="assets/stickers/teacup.png" class="modal-hero-img" alt="rest">
+      <p class="breathing-title">rest time, darling</p>
+      <p class="breathing-subtitle">you have earned this</p>
+      <div class="breathing-circle-wrap">
+        <div class="breathing-circle expand" id="rest-circle">
+          <img src="assets/bg/flower9.webp" class="breathing-flower" alt="">
+        </div>
+        <div class="breathing-ring"></div>
+      </div>
+      <span class="timer-digits" id="rest-digits" style="color:var(--heading);font-size:2rem">05:00</span>
+      <p class="breathing-subtitle" style="margin-top:8px">breathe gently</p>
+      <button class="btn-skip" onclick="endRest()">end rest early</button>
+    </div>
+  </div>
+
+  <!-- FEEDBACK MODAL — with write + send form -->
+  <div class="modal-overlay" id="feedback-modal">
+    <div class="modal-card feedback-card">
+      <button class="modal-close" onclick="closeModal('feedback-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+      <img src="assets/stickers/feedback.png" class="modal-hero-img" alt="feedback">
+      <h2 class="modal-title">Share your thoughts</h2>
+      <p class="modal-body" style="text-align:center;margin-bottom:20px">Bloom grows with your feedback. I read every message personally.</p>
+
+      <div class="feedback-form" id="feedback-form">
+        <input class="feedback-input" id="feedback-name" type="text"
+               placeholder="your name (optional)" autocomplete="off">
+        <textarea class="feedback-textarea" id="feedback-message"
+                  placeholder="What's working? What could bloom better? Any ideas or bugs?..."
+                  maxlength="1000" rows="5"></textarea>
+        <button class="feedback-send-btn" id="feedback-send-btn" onclick="sendFeedback()">
+          <img src="assets/stickers/feedback.png" class="feedback-send-icon" alt="">
+          Send to Amina
+        </button>
+        <p class="feedback-sending" id="feedback-sending" style="display:none">Sending your bloom...</p>
+        <p class="feedback-sent" id="feedback-sent" style="display:none">
+          <img src="assets/bg/flower10.webp" class="feedback-sent-flower" alt="">
+          Thank you! Your message is on its way.
+        </p>
+        <p class="feedback-error" id="feedback-error" style="display:none">
+          Email not configured yet — please send your feedback directly to<br>
+          <strong style="color:var(--heading)">matlabmatryoshka@gmail.com</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL UP OVERLAY -->
+  <div id="levelup-overlay">
+    <div class="levelup-card">
+      <img class="levelup-img" id="levelup-img" src="" alt="">
+      <h2 class="levelup-title">Level Up!</h2>
+      <p class="levelup-name" id="levelup-name"></p>
+      <p class="levelup-reward" id="levelup-reward"></p>
+      <div class="levelup-flowers" id="levelup-flowers"></div>
+      <button class="btn" onclick="closeLevelUp()">Wonderful!</button>
+    </div>
+  </div>
+
+  <!-- CELEBRATION -->
+  <div id="celebration">
+    <img src="assets/bg/flower9.webp" class="celeb-flower" alt="">
+    <h2 class="celebrate-title">You did it, darling!</h2>
+    <p class="celebrate-msg" id="celebrate-msg"></p>
+    <div class="xp-gained-badge" id="xp-gained-badge"></div>
+    <div class="flowers" id="flowers-row"></div>
+    <button class="btn" onclick="resetAll()">Begin anew</button>
+  </div>
+
+  <!-- BREATHING OVERLAY -->
+  <div id="breathing-overlay">
+    <div class="breathing-card">
+      <p class="breathing-title">before we begin...</p>
+      <p class="breathing-subtitle">take a gentle breath with me</p>
+      <div class="breathing-circle-wrap">
+        <div class="breathing-circle" id="breathing-circle">
+          <img src="assets/bg/flower9.webp" class="breathing-flower" alt="">
+        </div>
+        <div class="breathing-ring" id="breathing-ring"></div>
+      </div>
+      <p class="breathing-instruction" id="breathing-instruction">inhale...</p>
+      <p class="breathing-count" id="breathing-count">4</p>
+      <button class="btn-skip" onclick="skipBreathing()">skip</button>
+    </div>
+  </div>
+
+  <!-- MAIN CARD -->
+  <div class="card" id="main-card">
+    <img src="assets/bg/flower7.webp"   class="corner-img corner-tl" alt="">
+    <img src="assets/bg/butterfly.webp" class="corner-img corner-tr" alt="">
+    <img src="assets/bg/butterfly.webp" class="corner-img corner-bl" alt="">
+    <img src="assets/bg/flower7.webp"   class="corner-img corner-br" alt="">
+
+    <div class="crown-wrap">
+      <img src="assets/stickers/crown.webp" class="crown-img" alt="bloom">
+    </div>
+    <h1>Bloom</h1>
+    <p class="subtitle">a gentle focus spell</p>
+
+    <!-- INPUT SCREEN -->
+    <div id="input-screen">
+      <p class="prompt">What is the one little thing<br>you're tending to right now, dear?</p>
+      <textarea id="task-input" placeholder="e.g. write my lit review intro..." maxlength="140"></textarea>
+      <div class="divider">choose your spell length</div>
+      <div class="mode-tabs">
+        <button class="tab active" onclick="selectDuration(this, 25)">25 min</button>
+        <button class="tab" onclick="selectDuration(this, 15)">15 min</button>
+        <button class="tab" onclick="selectDuration(this, 5)">5 min</button>
+      </div>
+      <button class="btn" onclick="startBreathing()">cast the spell</button>
+
+      <div class="affirmation-box">
+        <p class="affirmation-text" id="affirmation-text"></p>
+        <button class="affirmation-refresh" onclick="newAffirmation()" title="New affirmation">
+          <img src="assets/bg/star3.png" class="refresh-star" alt="new">
+        </button>
+      </div>
+
+      <div class="log-section">
+        <button class="log-header" onclick="toggleLog()" id="log-header" aria-expanded="false">
+          <span class="log-header-left">
+            <img src="assets/stickers/notebook.webp" class="notebook-icon" alt="">
+            <span>today's bloom log</span>
+          </span>
+          <img src="assets/bg/leaf1.webp" class="log-arrow-img" id="log-arrow-img" alt="">
+        </button>
+        <div class="log-body" id="log-body">
+          <ul class="log-list" id="log-list">
+            <li class="log-empty">Nothing bloomed yet today</li>
+          </ul>
+          <div class="journal-wrap">
+            <p class="journal-label">What makes you bloom today?</p>
+            <!-- Submitted journal entries list -->
+            <div class="journal-entries" id="journal-entries"></div>
+            <!-- Input row -->
+            <div class="journal-input-row">
+              <input
+                class="journal-input"
+                id="journal-input"
+                type="text"
+                placeholder="Write something and press Enter..."
+                maxlength="200"
+                autocomplete="off"
+                spellcheck="true"
+              >
+              <button class="journal-submit-btn" id="journal-submit-btn" onclick="submitJournalEntry()" title="Save entry">
+                <img src="assets/bg/flower10.webp" class="journal-submit-icon" alt="save">
+              </button>
+            </div>
+            <p class="journal-hint">Press Enter or the flower to save — earns you XP</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOCUS SCREEN -->
+    <div id="focus-screen">
+      <p class="focus-hint">right now, you are doing...</p>
+      <div class="task-display"><span id="task-label"></span></div>
+      <div class="timer-wrap" id="timer-wrap">
+        <svg class="timer-svg" viewBox="0 0 160 160" aria-hidden="true">
+          <defs>
+            <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#e8a0b4"/>
+              <stop offset="100%" stop-color="#9daf89"/>
+            </linearGradient>
+          </defs>
+          <circle class="timer-track" cx="80" cy="80" r="70"/>
+          <circle class="timer-progress" id="timer-ring" cx="80" cy="80" r="70"/>
+        </svg>
+        <div class="timer-text">
+          <span class="timer-digits" id="timer-digits">25:00</span>
+          <span class="timer-label-text">minutes of magic</span>
+        </div>
+        <div class="timer-orbit">
+          <img src="assets/bg/star3.png" class="orbit-star" alt="">
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="pause-btn" onclick="togglePause()">pause</button>
+        <button class="btn btn-outline" onclick="resetAll()">end spell</button>
+      </div>
+      <p class="session-info" id="session-info">session 1</p>
+    </div>
+  </div>
+
+  <!-- LO-FI PLAYER -->
+  <div class="lofi-player">
+    <div class="lofi-inner">
+      <div class="lofi-info">
+        <img src="assets/stickers/radio.png" class="radio-icon" id="lofi-radio-img" alt="radio">
+        <div class="lofi-text">
+          <span class="lofi-title">lo-fi focus radio</span>
+          <span class="lofi-sub" id="lofi-sub">press play to begin — requires internet</span>
+        </div>
+      </div>
+      <div class="lofi-controls">
+        <button class="lofi-btn" id="play-btn" onclick="toggleLofi()" aria-label="Play or pause">
+          <span id="play-icon">&#9654;</span>
+        </button>
+        <input class="lofi-volume" type="range" min="0" max="1" step="0.01" value="0.6"
+               oninput="setVolume(this.value)" aria-label="Volume">
+        <span class="lofi-vol-icon" id="vol-icon">
+          <img src="assets/bg/leaf2.webp" class="vol-leaf" alt="volume">
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEKLY STATS MODAL -->
+  <div class="modal-overlay" id="stats-modal">
+    <div class="modal-card stats-card">
+      <button class="modal-close" onclick="closeModal('stats-modal')">
+        <img src="assets/bg/leaf1.webp" class="close-icon" alt="close">
+      </button>
+
+      <div class="stats-header">
+        <img src="assets/stickers/calendar.png" class="modal-hero-img" alt="calendar">
+        <h2 class="modal-title">This Week in Bloom</h2>
+        <p class="stats-dates" id="stats-dates"></p>
+      </div>
+
+      <!-- Summary row -->
+      <div class="stats-summary-row">
+        <div class="stats-summary-card">
+          <img src="assets/stickers/candle.png" class="stats-summary-icon" alt="streak">
+          <span class="stats-summary-num" id="streak-num">0</span>
+          <span class="stats-summary-label">day streak</span>
+        </div>
+        <div class="stats-summary-card">
+          <img src="assets/bg/star2.webp" class="stats-summary-icon" alt="xp">
+          <span class="stats-summary-num" id="week-xp-num">0</span>
+          <span class="stats-summary-label">XP this week</span>
+        </div>
+        <div class="stats-summary-card">
+          <img src="assets/stickers/trophy.png" class="stats-summary-icon" alt="sessions">
+          <span class="stats-summary-num" id="week-sessions-num">0</span>
+          <span class="stats-summary-label">sessions</span>
+        </div>
+        <div class="stats-summary-card">
+          <img src="assets/bg/flower9.webp" class="stats-summary-icon" alt="minutes">
+          <span class="stats-summary-num" id="week-mins-num">0</span>
+          <span class="stats-summary-label">min focused</span>
+        </div>
+      </div>
+
+      <!-- Flower bar chart -->
+      <div class="stats-chart-wrap">
+        <p class="stats-section-title">
+          <img src="assets/bg/sparkle1.png" class="stats-title-icon" alt="">
+          focus time by day
+        </p>
+        <div class="stats-chart" id="stats-chart"></div>
+        <div class="stats-chart-labels" id="stats-chart-labels"></div>
+      </div>
+
+      <!-- Best day highlight -->
+      <div class="stats-highlight" id="stats-highlight" style="display:none">
+        <img src="assets/stickers/trophy.png" class="highlight-trophy" alt="trophy">
+        <div>
+          <p class="highlight-title">best day this week</p>
+          <p class="highlight-day" id="highlight-day"></p>
+        </div>
+      </div>
+
+      <!-- Ladybug daily badge -->
+      <div class="stats-badge-row" id="stats-badge-row">
+        <p class="stats-section-title">
+          <img src="assets/bg/sparkle3.png" class="stats-title-icon" alt="">
+          your bloom days
+        </p>
+        <div class="badge-row" id="badge-row"></div>
+      </div>
+
+      <!-- Journal highlights -->
+      <div class="stats-journal-wrap" id="stats-journal-wrap">
+        <p class="stats-section-title">
+          <img src="assets/stickers/notebook.webp" class="stats-title-icon" alt="">
+          what made you bloom
+        </p>
+        <div class="stats-journal-list" id="stats-journal-list"></div>
+      </div>
+
+      <!-- Export / Import -->
+      <div class="backup-section">
+        <p class="stats-section-title">
+          <img src="assets/bg/leaf1.webp" class="stats-title-icon" alt="">
+          backup your bloom
+        </p>
+        <p class="backup-desc">Download your log to keep it safe, or restore from a backup file.</p>
+        <div class="backup-btns">
+          <button class="backup-btn" onclick="exportBloom()">
+            <img src="assets/bg/flower10.webp" class="backup-icon" alt="">
+            Download backup
+          </button>
+          <label class="backup-btn backup-btn-import">
+            <img src="assets/bg/blossom.webp" class="backup-icon" alt="">
+            Restore backup
+            <input type="file" accept=".json" onchange="importBloom(event)" style="display:none">
+          </label>
+        </div>
+        <p class="backup-note">Your data never leaves your device unless you download it.</p>
+      </div>
+
+    </div>
+  </div><!-- end modal-card -->
+  </div><!-- end modal-overlay -->
+
+  <script src="js/app.js"></script>
+</body>
+</html>
